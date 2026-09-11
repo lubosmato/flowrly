@@ -11,10 +11,12 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Sparkles, Loader2, Activity } from "lucide-react";
 import { cn } from "cn";
+import { AnimatePresence, motion } from "motion/react";
 import type { TimeEntry } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dot, Empty, PageHeader } from "@/components/bits";
 import { EntryForm } from "@/components/entry-form";
 import { useConfirm } from "@/components/confirm";
@@ -153,7 +155,7 @@ export function CalendarPage() {
 function DayPanel({ day }: { day: string }) {
   const [editing, setEditing] = useState<TimeEntry | "new" | null>(null);
   const filter = useMemo(() => ({ client_id: null, from: day, to: day }), [day]);
-  const { data: entries = [] } = useEntries(filter);
+  const { data: entries = [], isPending } = useEntries(filter);
   const { data: clients = [] } = useClients();
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const del = useDeleteEntry();
@@ -173,9 +175,13 @@ function DayPanel({ day }: { day: string }) {
         <div className="flex items-start justify-between p-6 pb-3">
           <div>
             <h2 className="font-display text-2xl leading-tight">{prettyDay(day)}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {entries.length === 0 ? "Nothing logged" : `${fmtMinutes(total)} across ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
-            </p>
+            {isPending ? (
+              <Skeleton className="mt-2 h-4 w-36" />
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {entries.length === 0 ? "Nothing logged" : `${fmtMinutes(total)} across ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
+              </p>
+            )}
           </div>
           {editing === null && (
             <Button size="sm" onClick={() => setEditing("new")}>
@@ -185,7 +191,32 @@ function DayPanel({ day }: { day: string }) {
         </div>
 
         <ScrollArea className="min-h-0 flex-1">
-          <div className="flex flex-col gap-4 px-6 pb-6">
+          <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={isPending ? "pending" : day}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12, ease: "linear" }}
+            className="flex flex-col gap-4 px-6 pb-6"
+          >
+            {isPending ? (
+              <ul className="flex flex-col gap-2">
+                {[0, 1, 2].map((i) => (
+                  <li key={i} className="flex gap-3 px-3 py-2.5">
+                    <Skeleton className="w-1 self-stretch rounded-full" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-5 w-14" />
+                      </div>
+                      <Skeleton className="h-3 w-3/4" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+            <>
             {editing !== null && (
               <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
                 <EntryForm
@@ -246,7 +277,10 @@ function DayPanel({ day }: { day: string }) {
             )}
 
             <TrackerCard day={day} />
-          </div>
+            </>
+            )}
+          </motion.div>
+          </AnimatePresence>
         </ScrollArea>
       </div>
     </aside>
