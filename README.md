@@ -16,7 +16,7 @@ Closing the window hides it to the menu bar; use the tray icon to bring it back 
 
 ## How invoicing works
 
-Filter entries on the **Entries** screen (one client, date range), press **Create invoice**. Total minutes are rounded *up* to the nearest half hour, one line at the client's rate. Invoice-level settings (currency, payment method, language, VAT mode, bank account, due days) are copied from the chosen Fakturoid generator. Fakturoid creates the invoice immediately, there is no draft. Flowrly keeps no record of what was invoiced; Fakturoid is the source of truth.
+Filter entries on the **Entries** screen (one client, date range), press **Create invoice**. Total hours are exact (two decimals), one line at the client's rate. Invoice-level settings (currency, payment method, language, VAT mode, bank account, due days) are copied from the chosen Fakturoid generator. Fakturoid creates the invoice immediately, there is no draft. Flowrly keeps no record of what was invoiced; Fakturoid is the source of truth.
 
 ## Data
 

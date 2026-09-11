@@ -77,6 +77,10 @@ export type Client = {
 	hourly_rate: number | null,
 	/**  ISO 4217 code, e.g. "CZK". */
 	currency: string,
+	/**  Contractual workload share for this client, 0-100. */
+	pensum_percent: number,
+	/**  Hours in a full working day, e.g. 8.5. */
+	workday_hours: number | null,
 	vat_rate: number,
 	line_description: string,
 	fakturoid_subject_id: number | null,
@@ -89,6 +93,8 @@ export type ClientInput = {
 	color: string,
 	hourly_rate: number | null,
 	currency: string,
+	pensum_percent: number,
+	workday_hours: number | null,
 	vat_rate: number,
 	line_description: string,
 	fakturoid_subject_id: number | null,

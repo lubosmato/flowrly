@@ -47,6 +47,8 @@ fn client_from_row(r: &Row) -> rusqlite::Result<Client> {
         color: r.get("color")?,
         hourly_rate: r.get("hourly_rate")?,
         currency: r.get("currency")?,
+        pensum_percent: r.get("pensum_percent")?,
+        workday_hours: r.get("workday_hours")?,
         vat_rate: r.get("vat_rate")?,
         line_description: r.get("line_description")?,
         fakturoid_subject_id: r.get("fakturoid_subject_id")?,
@@ -55,7 +57,7 @@ fn client_from_row(r: &Row) -> rusqlite::Result<Client> {
     })
 }
 
-const CLIENT_COLS: &str = "id, name, color, hourly_rate, currency, vat_rate, line_description, fakturoid_subject_id, fakturoid_generator_id, archived";
+const CLIENT_COLS: &str = "id, name, color, hourly_rate, currency, pensum_percent, workday_hours, vat_rate, line_description, fakturoid_subject_id, fakturoid_generator_id, archived";
 
 pub fn list_clients(conn: &Connection) -> AppResult<Vec<Client>> {
     let mut stmt = conn.prepare(&format!("SELECT {CLIENT_COLS} FROM clients ORDER BY archived, name"))?;
@@ -83,14 +85,20 @@ fn validate_client(input: &ClientInput) -> AppResult<()> {
     if cur.len() != 3 || !cur.chars().all(|c| c.is_ascii_alphabetic()) {
         return Err(AppError::Validation("Currency must be a 3-letter code like CZK or EUR".into()));
     }
+    if !(0..=100).contains(&input.pensum_percent) {
+        return Err(AppError::Validation("Pensum must be between 0 and 100 %".into()));
+    }
+    if !(input.workday_hours > 0.0 && input.workday_hours <= 24.0) {
+        return Err(AppError::Validation("Workday must be between 0 and 24 hours".into()));
+    }
     Ok(())
 }
 
 pub fn create_client(conn: &Connection, input: &ClientInput) -> AppResult<Client> {
     validate_client(input)?;
     conn.execute(
-        "INSERT INTO clients (name, color, hourly_rate, vat_rate, line_description, fakturoid_subject_id, fakturoid_generator_id, archived, currency)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO clients (name, color, hourly_rate, vat_rate, line_description, fakturoid_subject_id, fakturoid_generator_id, archived, currency, pensum_percent, workday_hours)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
             input.name.trim(),
             input.color,
@@ -100,7 +108,9 @@ pub fn create_client(conn: &Connection, input: &ClientInput) -> AppResult<Client
             input.fakturoid_subject_id,
             input.fakturoid_generator_id,
             input.archived as i64,
-            input.currency.trim().to_uppercase()
+            input.currency.trim().to_uppercase(),
+            input.pensum_percent,
+            input.workday_hours
         ],
     )?;
     get_client(conn, conn.last_insert_rowid() as i32)
@@ -110,7 +120,8 @@ pub fn update_client(conn: &Connection, id: i32, input: &ClientInput) -> AppResu
     validate_client(input)?;
     let n = conn.execute(
         "UPDATE clients SET name = ?1, color = ?2, hourly_rate = ?3, vat_rate = ?4, line_description = ?5,
-         fakturoid_subject_id = ?6, fakturoid_generator_id = ?7, archived = ?8, currency = ?10 WHERE id = ?9",
+         fakturoid_subject_id = ?6, fakturoid_generator_id = ?7, archived = ?8, currency = ?10,
+         pensum_percent = ?11, workday_hours = ?12 WHERE id = ?9",
         params![
             input.name.trim(),
             input.color,
@@ -121,7 +132,9 @@ pub fn update_client(conn: &Connection, id: i32, input: &ClientInput) -> AppResu
             input.fakturoid_generator_id,
             input.archived as i64,
             id,
-            input.currency.trim().to_uppercase()
+            input.currency.trim().to_uppercase(),
+            input.pensum_percent,
+            input.workday_hours
         ],
     )?;
     if n == 0 {
@@ -419,6 +432,8 @@ mod tests {
                 color: "#abc".into(),
                 hourly_rate: 1000.0,
                 currency: "EUR".into(),
+                pensum_percent: 80,
+                workday_hours: 8.5,
                 vat_rate: 21,
                 line_description: "Dev {period}".into(),
                 fakturoid_subject_id: None,

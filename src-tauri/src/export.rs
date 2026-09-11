@@ -36,6 +36,8 @@ mod tests {
             color: "#000".into(),
             hourly_rate: 1.0,
             currency: "CZK".into(),
+            pensum_percent: 100,
+            workday_hours: 8.0,
             vat_rate: 0,
             line_description: String::new(),
             fakturoid_subject_id: None,

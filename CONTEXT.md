@@ -34,6 +34,14 @@ _Avoid_: Blocklist, private app
 A label for a kind of work (e.g. "coding", "meetings") attached to portions of a Day Summary. Tags are created by the LLM as needed and reused across days from the existing list.
 _Avoid_: Category, label, project, type
 
+**Pensum**:
+The share of a full workload the freelancer owes a Client, as a percentage (e.g. 80%). Together with the Client's Workday it yields the expected hours for any period.
+_Avoid_: Allocation, FTE, capacity
+
+**Workday**:
+The number of hours in one full working day for a Client (e.g. 8.5). Only Monday to Friday count as workdays.
+_Avoid_: Shift, day length
+
 ## Invoicing
 
 **Hourly Rate**:
@@ -41,7 +49,7 @@ Price per hour of work, set per Client. The only pricing fact the app owns.
 _Avoid_: Price, tariff, fee
 
 **Invoice**:
-A Fakturoid document created from a filtered list of Time Entries for one Client: one line, quantity = total hours rounded up to the nearest half hour, at the Client's Hourly Rate. The app does not keep its own copy of the invoice or mark entries as billed; Fakturoid is the only record.
+A Fakturoid document created from a filtered list of Time Entries for one Client: one line, quantity = total hours exact to two decimals, at the Client's Hourly Rate. The app does not keep its own copy of the invoice or mark entries as billed; Fakturoid is the only record.
 _Avoid_: Bill, billing run, statement
 
 **Fakturoid Subject**:

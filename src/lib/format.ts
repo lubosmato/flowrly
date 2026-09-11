@@ -16,20 +16,17 @@ export function fmtHours(minutes: number | null | undefined, digits = 2): string
   return h.toFixed(digits).replace(/\.?0+$/, "") || "0";
 }
 
-/** Always-up half-hour rounding, mirrors the Rust invoice math. */
-export function roundUpHalfHours(minutes: number): number {
-  if (minutes <= 0) return 0;
-  return Math.ceil(minutes / 30) * 0.5;
-}
-
 /**
- * Parse a duration typed by a human. Accepts "3h 30m", "3:30", "3.5", "3,5", "90m", "1h", "2".
+ * Parse a duration typed by a human. Accepts "3h 30m", "3:30", "3.5", "3,5", "90m", "1h", "2",
+ * and workdays: "1d", "0.5d", "1d 2h" (a day = `workdayMinutes`, the client's workday length).
  * Bare numbers <= 24 are hours, larger are minutes. Returns minutes or null.
  */
-export function parseDuration(raw: string): number | null {
+export function parseDuration(raw: string, workdayMinutes = 8 * 60): number | null {
   const s = raw.trim().toLowerCase().replace(",", ".");
   if (!s) return null;
   let m: RegExpMatchArray | null;
+  if ((m = s.match(/^(\d+(?:\.\d+)?)\s*d(?:ays?)?(?:\s*(\d+(?:\.\d+)?)\s*h(?:ours?)?)?(?:\s*(\d+)\s*m(?:in)?)?$/)))
+    return Math.round(Number(m[1]) * workdayMinutes + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0));
   if ((m = s.match(/^(\d{1,2}):(\d{1,2})$/))) return Number(m[1]) * 60 + Number(m[2]);
   if ((m = s.match(/^(\d+(?:\.\d+)?)\s*h(?:ours?)?(?:\s*(\d+)\s*m(?:in)?)?$/)))
     return Math.round(Number(m[1]) * 60 + Number(m[2] ?? 0));

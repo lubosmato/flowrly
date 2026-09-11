@@ -21,6 +21,8 @@ const blank = (): ClientInput => ({
   color: CLIENT_COLORS[0],
   hourly_rate: 0,
   currency: "CZK",
+  pensum_percent: 100,
+  workday_hours: 8,
   vat_rate: 21,
   line_description: "Software development {period}",
   fakturoid_subject_id: null,
@@ -71,6 +73,9 @@ export function ClientsPage() {
                     <span className="font-display tabular text-3xl">{money(c.hourly_rate, c.currency)}</span>
                     <span className="text-xs text-muted-foreground">/ h · VAT {c.vat_rate}%</span>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Pensum {c.pensum_percent}% · {c.workday_hours ?? 8}h workday
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {c.fakturoid_subject_id ? `Subject #${c.fakturoid_subject_id}` : "No Fakturoid subject"}
                     {c.fakturoid_generator_id ? ` · Generator #${c.fakturoid_generator_id}` : ""}
@@ -105,6 +110,8 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
           color: client.color,
           hourly_rate: client.hourly_rate ?? 0,
           currency: client.currency,
+          pensum_percent: client.pensum_percent,
+          workday_hours: client.workday_hours ?? 8,
           vat_rate: client.vat_rate,
           line_description: client.line_description,
           fakturoid_subject_id: client.fakturoid_subject_id,
@@ -186,6 +193,15 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
       <Field label="Invoice line" hint="{period} becomes e.g. 09/2026">
         <Input value={form.line_description} onChange={(e) => set("line_description", e.target.value)} />
       </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Pensum %" hint="Share of a full workload you owe this client">
+          <Input type="number" min={0} max={100} step={5} value={form.pensum_percent} onChange={(e) => set("pensum_percent", Number(e.target.value))} />
+        </Field>
+        <Field label="Workday hours" hint="Hours in a full working day, e.g. 8.5">
+          <Input type="number" min={0.5} max={24} step={0.5} value={form.workday_hours ?? 8} onChange={(e) => set("workday_hours", Number(e.target.value))} />
+        </Field>
+      </div>
 
       <div className="flex flex-col gap-3 rounded-2xl bg-foreground/[0.035] p-4">
         <div className="flex items-center justify-between">

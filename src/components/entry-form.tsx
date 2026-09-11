@@ -55,7 +55,9 @@ export function EntryForm({
     if (!clientId && activeClients.length > 0) setClientId(String(activeClients[0].id));
   }, [activeClients, clientId]);
 
-  const parsedDuration = mode === "range" ? diffMinutes(start, end) : parseDuration(durationText);
+  const selectedClient = activeClients.find((c) => String(c.id) === clientId);
+  const workdayMinutes = Math.round((selectedClient?.workday_hours ?? 8) * 60);
+  const parsedDuration = mode === "range" ? diffMinutes(start, end) : parseDuration(durationText, workdayMinutes);
 
   const create = useCreateEntry({ onSuccess: () => onDone() });
   const update = useUpdateEntry({ onSuccess: () => onDone() });
@@ -149,7 +151,7 @@ export function EntryForm({
       </Tabs>
 
       {mode === "duration" ? (
-        <Field label="Duration" hint="3h 30m · 3:30 · 3.5 · 90m">
+        <Field label="Duration" hint={`3h 30m · 3:30 · 3.5 · 90m · 1d (= ${fmtMinutes(workdayMinutes)} for this client)`}>
           <Input
             autoFocus
             placeholder="3h 30m"

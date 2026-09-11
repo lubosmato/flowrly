@@ -72,6 +72,11 @@ const MIGRATIONS: &[&str] = &[
     "#,
     // 0002: per-client currency
     r#"ALTER TABLE clients ADD COLUMN currency TEXT NOT NULL DEFAULT 'CZK';"#,
+    // 0003: workload (pensum) per client
+    r#"
+    ALTER TABLE clients ADD COLUMN pensum_percent INTEGER NOT NULL DEFAULT 100;
+    ALTER TABLE clients ADD COLUMN workday_hours REAL NOT NULL DEFAULT 8;
+    "#,
 ];
 
 pub fn migrations() -> Migrations<'static> {

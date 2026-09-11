@@ -11,6 +11,10 @@ pub struct Client {
     pub hourly_rate: f64,
     /// ISO 4217 code, e.g. "CZK".
     pub currency: String,
+    /// Contractual workload share for this client, 0-100.
+    pub pensum_percent: i32,
+    /// Hours in a full working day, e.g. 8.5.
+    pub workday_hours: f64,
     pub vat_rate: i32,
     pub line_description: String,
     pub fakturoid_subject_id: Option<i32>,
@@ -24,6 +28,8 @@ pub struct ClientInput {
     pub color: String,
     pub hourly_rate: f64,
     pub currency: String,
+    pub pensum_percent: i32,
+    pub workday_hours: f64,
     pub vat_rate: i32,
     pub line_description: String,
     pub fakturoid_subject_id: Option<i32>,

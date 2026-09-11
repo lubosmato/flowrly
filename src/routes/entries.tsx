@@ -3,7 +3,7 @@ import { addMonths, endOfMonth, startOfMonth } from "date-fns";
 import { save } from "@tauri-apps/plugin-dialog";
 import { ChevronLeft, ChevronRight, Download, FileText, Loader2, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { commands, type CreatedInvoice, type EntryFilter, type InvoicePreview, type TimeEntry } from "@/bindings";
+import { commands, type Client, type CreatedInvoice, type EntryFilter, type InvoicePreview, type TimeEntry } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,7 +14,8 @@ import { EntryForm } from "@/components/entry-form";
 import { DateRangePicker } from "@/components/date-picker";
 import { useConfirm } from "@/components/confirm";
 import { errorMessage, useClients, useDeleteEntry, useEntries } from "@/lib/api";
-import { fmtHours, fmtMinutes, isoDay, money, roundUpHalfHours, shortDay } from "@/lib/format";
+import { fmtHours, fmtMinutes, isoDay, money, shortDay } from "@/lib/format";
+import { workload } from "@/lib/workload";
 
 export function EntriesPage() {
   const [clientId, setClientId] = useState<string>("all");
@@ -180,14 +181,15 @@ export function EntriesPage() {
         <aside className="glass flex w-64 shrink-0 flex-col gap-6 rounded-3xl p-6">
           <Stat label="Entries" value={entries.length} />
           <Stat label="Logged" value={`${fmtHours(total)} h`} sub={fmtMinutes(total)} />
-          <Stat label="Billable" value={`${roundUpHalfHours(total)} h`} sub="rounded up to ½ h" />
+          <Stat label="Billable" value={`${fmtHours(total)} h`} sub="exact, no rounding" />
           {client && (
             <Stat
               label="Estimate"
-              value={money(roundUpHalfHours(total) * (client.hourly_rate ?? 0), client.currency)}
+              value={money((total / 60) * (client.hourly_rate ?? 0), client.currency)}
               sub={`${money(client.hourly_rate, client.currency)} / h, excl. VAT`}
             />
           )}
+          {client && <WorkloadStat client={client} from={from} to={to} logged={total} />}
         </aside>
       </div>
 
@@ -306,5 +308,31 @@ function InvoiceDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function WorkloadStat({ client, from, to, logged }: { client: Client; from: string; to: string; logged: number }) {
+  const w = workload(client, from, to, logged);
+  if (w.ratioSoFar === null && w.ratioTotal === null) return null;
+  const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
+  const soFar = Math.min(1, w.ratioSoFar ?? 0);
+  const onTrack = (w.ratioSoFar ?? 0) >= 0.95;
+  return (
+    <div className="flex flex-col gap-2">
+      <Stat
+        label="Workload"
+        value={pct(w.ratioSoFar)}
+        sub={`of ${fmtHours(w.expectedSoFar)} h expected so far · pensum ${client.pensum_percent}%`}
+      />
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
+        <div
+          className="h-full rounded-full transition-[width]"
+          style={{ width: `${soFar * 100}%`, background: onTrack ? "var(--chart-1)" : "var(--primary)" }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Whole period: <span className="tabular">{pct(w.ratioTotal)}</span> of {fmtHours(w.expectedTotal)} h ({w.workdaysTotal} workdays)
+      </p>
+    </div>
   );
 }

@@ -5,13 +5,12 @@ use serde_json::{json, Value};
 
 use crate::models::Client;
 
-/// Total minutes -> hours, always rounded UP to the nearest half hour.
-pub fn hours_rounded_up(minutes: i64) -> f64 {
+/// Total minutes -> hours, exact to two decimals (no rounding up).
+pub fn hours_exact(minutes: i64) -> f64 {
     if minutes <= 0 {
         return 0.0;
     }
-    let half_hours = (minutes as f64 / 30.0).ceil();
-    half_hours * 0.5
+    (minutes as f64 / 60.0 * 100.0).round() / 100.0
 }
 
 /// "09/2026" when the range sits inside one month, otherwise "01.09.2026 – 15.10.2026".
@@ -90,6 +89,8 @@ mod tests {
             color: "#fff".into(),
             hourly_rate: 1200.0,
             currency: "EUR".into(),
+            pensum_percent: 100,
+            workday_hours: 8.0,
             vat_rate: 21,
             line_description: "Vývoj software {period}".into(),
             fakturoid_subject_id: Some(16),
@@ -99,15 +100,13 @@ mod tests {
     }
 
     #[test]
-    fn rounds_up_to_half_hour() {
-        assert_eq!(hours_rounded_up(0), 0.0);
-        assert_eq!(hours_rounded_up(1), 0.5);
-        assert_eq!(hours_rounded_up(30), 0.5);
-        assert_eq!(hours_rounded_up(31), 1.0);
-        assert_eq!(hours_rounded_up(600), 10.0);
-        assert_eq!(hours_rounded_up(614), 10.5);
-        assert_eq!(hours_rounded_up(615), 10.5);
-        assert_eq!(hours_rounded_up(631), 11.0);
+    fn hours_are_exact() {
+        assert_eq!(hours_exact(0), 0.0);
+        assert_eq!(hours_exact(30), 0.5);
+        assert_eq!(hours_exact(45), 0.75);
+        assert_eq!(hours_exact(600), 10.0);
+        assert_eq!(hours_exact(614), 10.23);
+        assert_eq!(hours_exact(631), 10.52);
     }
 
     #[test]

@@ -333,7 +333,7 @@ fn preview(conn: &Connection, filter: &EntryFilter) -> AppResult<(InvoicePreview
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| entries.iter().map(|e| e.date.clone()).max().unwrap_or_default());
     let period_label = invoice::period_label(&from, &to);
-    let hours = invoice::hours_rounded_up(total_minutes as i64);
+    let hours = invoice::hours_exact(total_minutes as i64);
     let preview = InvoicePreview {
         client_id,
         line_name: invoice::line_name(&client, &period_label),
