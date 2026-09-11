@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    freelancer_tools_lib::run()
+    flowrly_lib::run()
 }
