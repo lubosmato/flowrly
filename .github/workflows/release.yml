@@ -1,0 +1,92 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: pnpm install --frozen-lockfile
+
+      - id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check version matches tag
+        run: |
+          conf=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "$conf" != "${{ steps.version.outputs.version }}" ]; then
+            echo "tauri.conf.json version $conf != tag ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Ad-hoc signature; app is not notarized. The cask strips quarantine on install.
+          APPLE_SIGNING_IDENTITY: "-"
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Flowrly ${{ github.ref_name }}
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: false
+          prerelease: false
+          args: --target aarch64-apple-darwin --bundles dmg
+
+  homebrew:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ vars.HOMEBREW_TAP_ENABLED == 'true' }}
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Download dmg and compute sha256
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "v$VERSION" -R "$GITHUB_REPOSITORY" -p "Flowrly_${VERSION}_aarch64.dmg"
+          echo "SHA256=$(sha256sum "Flowrly_${VERSION}_aarch64.dmg" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: lubosmato/homebrew-tap
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: tap
+
+      - name: Update cask
+        run: |
+          cd tap
+          sed -i \
+            -e "s/^  version \".*\"/  version \"$VERSION\"/" \
+            -e "s/^  sha256 \".*\"/  sha256 \"$SHA256\"/" \
+            Casks/flowrly.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "flowrly $VERSION" || echo "cask already up to date"
+          git push
