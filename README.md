@@ -9,6 +9,8 @@ A small macOS menu-bar app for a freelancer: log hours per client, see them on a
 Apple Silicon only.
 
 ```sh
+brew tap lubosmato/tap
+brew trust lubosmato/tap
 brew install --cask lubosmato/tap/flowrly
 ```
 
