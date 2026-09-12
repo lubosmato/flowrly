@@ -121,9 +121,9 @@ function SettingsForm({ initial }: { initial: Settings }) {
             </Field>
             <div className="flex items-center justify-between rounded-2xl bg-foreground/[0.035] p-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-2">
-                <ShieldCheck className="size-4" /> Window titles need Screen Recording permission on macOS.
+                <ShieldCheck className="size-4" /> Window titles need Accessibility permission on macOS.
               </span>
-              <Button variant="outline" size="xs" onClick={() => commands.openScreenRecordingSettings()}>
+              <Button variant="outline" size="xs" onClick={() => commands.openAccessibilitySettings()}>
                 Open System Settings
               </Button>
             </div>

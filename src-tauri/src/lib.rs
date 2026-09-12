@@ -39,7 +39,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::save_settings,
             commands::set_secret,
             commands::has_secret,
-            commands::open_screen_recording_settings,
+            commands::open_accessibility_settings,
             commands::open_url,
             commands::get_day_activity,
             commands::tracked_days,

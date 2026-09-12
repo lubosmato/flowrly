@@ -140,13 +140,12 @@ pub fn has_secret(key: SecretKey) -> AppResult<bool> {
 
 #[tauri::command]
 #[specta::specta]
-pub fn open_screen_recording_settings(app: AppHandle) -> AppResult<()> {
+pub fn open_accessibility_settings() -> AppResult<()> {
     tauri_plugin_opener::open_url(
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
         None::<&str>,
     )
     .map_err(|e| AppError::Internal(e.to_string()))?;
-    let _ = app;
     Ok(())
 }
 
