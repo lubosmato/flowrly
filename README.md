@@ -4,6 +4,14 @@ Time flows. Freelance grows.
 
 A small macOS menu-bar app for a freelancer: log hours per client, see them on a calendar, turn a filtered range into a Fakturoid invoice, export CSV, and let an LLM tell you what you actually did all day based on which windows had focus.
 
+| Calendar | Entries |
+| --- | --- |
+| ![Calendar with a day's entries and the LLM summary of tracked activity](docs/calendar.png) | ![Entries filtered by client and month, with hours, estimate and workload](docs/entries.png) |
+
+| Activity | Clients |
+| --- | --- |
+| ![Activity detail: active vs idle time, per-app breakdown and generated summary](docs/activity.png) | ![Clients with hourly rate, VAT, pensum and Fakturoid subject](docs/clients.png) |
+
 ## Install
 
 Apple Silicon only.
