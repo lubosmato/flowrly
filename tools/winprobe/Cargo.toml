@@ -1,0 +1,11 @@
+[package]
+name = "winprobe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+active-win-pos-rs = "0.11"
+core-foundation = "0.10"
+core-graphics = "0.25"
+accessibility-sys = "0.1"

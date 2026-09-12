@@ -23,6 +23,7 @@ cd src-tauri && cargo test   # Rust unit tests; also re-exports src/bindings.ts
 - `rusqlite_migration` is pinned `~2.5` because 2.6 needs rustc 1.95; keep `rusqlite` on the version it requires (0.39).
 - specta-typescript forbids `i64`; models use `i32`. `f64` exports as `number | null`, so the frontend does `?? 0`.
 - Settings are stored as one JSON blob; new fields need a default in `Settings::default()` and are merged over defaults on load.
-- Window titles of other apps require macOS Screen Recording permission; without it the tracker only sees app names.
+- Window titles come from the Accessibility API (`AXFocusedWindow` → `AXTitle`, see `tracker.rs`) and need the macOS Accessibility permission; the tracker prompts for it on start. `active-win-pos-rs` is kept only for the frontmost app name/pid — its `kCGWindowName` is the first CG window of the pid, which is the tab bar or a stale tab for tabbed apps like Ghostty.
+- `tools/winprobe` dumps everything macOS reports about an app's windows (CG list + AX tree); use it to troubleshoot tracking.
 - Fakturoid has no "invoice from generator" endpoint in v3; we copy generator fields client-side (`invoice.rs`).
 - Theme follows the OS only (`prefers-color-scheme`); there is no theme switcher and no i18n.

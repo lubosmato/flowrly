@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { commands, type AppError, type ClientInput, type EntryFilter, type Settings, type TimeEntryInput } from "@/bindings";
+import { isoDay } from "@/lib/format";
+
+/** Today's activity keeps growing while the tracker runs; past days never change. */
+const LIVE_REFETCH_MS = 30_000;
+const liveRefetch = (day: string) => (day === isoDay(new Date()) ? LIVE_REFETCH_MS : false);
 
 export function errorMessage(e: unknown): string {
   if (e && typeof e === "object" && "kind" in e && "message" in e) {
@@ -35,7 +40,12 @@ export const useDayTotals = (from: string, to: string) =>
   useQuery({ queryKey: keys.dayTotals(from, to), queryFn: () => commands.dayTotals(from, to) });
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: commands.getSettings });
 export const useDayActivity = (day: string) =>
-  useQuery({ queryKey: keys.dayActivity(day), queryFn: () => commands.getDayActivity(day), staleTime: 30_000 });
+  useQuery({
+    queryKey: keys.dayActivity(day),
+    queryFn: () => commands.getDayActivity(day),
+    staleTime: 30_000,
+    refetchInterval: liveRefetch(day),
+  });
 export const useTrackedDays = (from: string, to: string) =>
   useQuery({ queryKey: keys.trackedDays(from, to), queryFn: () => commands.trackedDays(from, to), staleTime: 60_000 });
 export const useDaySummary = (day: string) =>

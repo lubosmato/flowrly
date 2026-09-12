@@ -46,6 +46,8 @@ schemars = "1"
 rig = { version = "0.42", package = "rig-core" }
 rig-agent = "0.42"
 active-win-pos-rs = "0.11"
+accessibility-sys = "0.1"
+core-foundation = "0.10"
 user-idle = "0.6"
 
 

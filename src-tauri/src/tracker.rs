@@ -12,6 +12,50 @@ use rusqlite::{params, Connection};
 
 use crate::db;
 
+mod ax {
+    //! Focused-window title via the Accessibility API. `active-win-pos-rs` reads
+    //! `kCGWindowName` of the *first* CG window owned by the frontmost pid, which for
+    //! apps with native tabs (Ghostty, Terminal, Safari) is often the tab bar or a
+    //! background tab, so the title comes back empty or stale. AXFocusedWindow is
+    //! always the right window. Needs the Accessibility permission (not Screen
+    //! Recording).
+    use accessibility_sys::*;
+    use core_foundation::base::{CFType, CFTypeRef, TCFType};
+    use core_foundation::boolean::CFBoolean;
+    use core_foundation::dictionary::CFDictionary;
+    use core_foundation::string::CFString;
+
+    /// Ask macOS for Accessibility access, showing the system prompt if not yet granted.
+    pub fn request_permission() -> bool {
+        let key = unsafe { CFString::wrap_under_get_rule(kAXTrustedCheckOptionPrompt) };
+        let opts = CFDictionary::from_CFType_pairs(&[(key, CFBoolean::true_value())]);
+        unsafe { AXIsProcessTrustedWithOptions(opts.as_concrete_TypeRef()) }
+    }
+
+    pub fn focused_window_title(pid: i32) -> Option<String> {
+        unsafe {
+            let app = AXUIElementCreateApplication(pid);
+            if app.is_null() {
+                return None;
+            }
+            let app = CFType::wrap_under_create_rule(app as CFTypeRef);
+            let win = attr(app.as_CFTypeRef() as AXUIElementRef, kAXFocusedWindowAttribute)?;
+            let title = attr(win.as_CFTypeRef() as AXUIElementRef, kAXTitleAttribute)?;
+            title.downcast::<CFString>().map(|s| s.to_string())
+        }
+    }
+
+    unsafe fn attr(el: AXUIElementRef, name: &str) -> Option<CFType> {
+        let name = CFString::new(name);
+        let mut out: CFTypeRef = std::ptr::null();
+        let err = AXUIElementCopyAttributeValue(el, name.as_concrete_TypeRef(), &mut out);
+        if err != kAXErrorSuccess || out.is_null() {
+            return None;
+        }
+        Some(CFType::wrap_under_create_rule(out))
+    }
+}
+
 pub const POLL_INTERVAL: Duration = Duration::from_secs(2);
 pub const HEARTBEAT: Duration = Duration::from_secs(60);
 /// Gap between consecutive samples above which we assume the machine was off/asleep.
@@ -46,7 +90,10 @@ fn observe(cfg: &TrackerConfig) -> Option<Observation> {
     let (app, title) = if ignored {
         (IGNORED_APP_LABEL.to_string(), String::new())
     } else {
-        (win.app_name, win.title)
+        let title = ax::focused_window_title(win.process_id as i32)
+            .filter(|t| !t.is_empty())
+            .unwrap_or(win.title);
+        (win.app_name, title)
     };
     Some(Observation { app, title, idle })
 }
@@ -77,6 +124,9 @@ pub fn spawn(db_path: PathBuf, cfg: SharedTrackerConfig) {
                     return;
                 }
             };
+            if !ax::request_permission() {
+                log::warn!("tracker: Accessibility permission not granted; window titles may be empty");
+            }
             let mut last: Option<Observation> = None;
             let mut last_write = Instant::now();
             loop {
@@ -89,7 +139,9 @@ pub fn spawn(db_path: PathBuf, cfg: SharedTrackerConfig) {
                     last = None;
                     continue;
                 }
-                let Some(obs) = observe(&snapshot) else { continue };
+                let Some(obs) = observe(&snapshot) else {
+                    continue;
+                };
                 let changed = last.as_ref() != Some(&obs);
                 if changed || last_write.elapsed() >= HEARTBEAT {
                     if let Err(e) = insert(&conn, &obs) {
