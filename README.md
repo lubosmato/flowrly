@@ -17,10 +17,11 @@ A small macOS menu-bar app for a freelancer: log hours per client, see them on a
 Apple Silicon only.
 
 ```sh
-brew tap lubosmato/tap
 brew trust lubosmato/tap
 brew install --cask lubosmato/tap/flowrly
 ```
+
+Needs Homebrew 6 or newer (run `brew update` if `brew trust` is unknown). Trust first: `brew tap` refuses casks from an untrusted tap and fails. `brew install` adds the tap itself.
 
 The app is not notarized. The cask removes the quarantine flag after install so it launches without the Gatekeeper prompt. If you download the `.dmg` from [Releases](https://github.com/lubosmato/flowrly/releases) by hand instead, run `xattr -dr com.apple.quarantine /Applications/Flowrly.app` once.
 
