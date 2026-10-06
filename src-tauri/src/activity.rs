@@ -229,4 +229,20 @@ mod tests {
         let d = sample_durations(&samples, Some(at(9, 1, 30)));
         assert_eq!(d, vec![90]);
     }
+
+    /// Writes the exact LLM digest for one day to `/tmp/digest-<day>.txt`. Run with:
+    /// `FLOWRLY_DB="$HOME/Library/Application Support/cz.lubosmatejcik.flowrly/flowrly.db" \
+    ///  FLOWRLY_DAY=2026-10-02 cargo test --lib dump_digest -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn dump_digest() {
+        let db = std::env::var("FLOWRLY_DB").unwrap();
+        let day = std::env::var("FLOWRLY_DAY").unwrap();
+        let conn = Connection::open_with_flags(&db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let samples = load_samples(&conn, &day).unwrap();
+        let agg = aggregate(&samples, Some(Local::now().naive_local()));
+        let text = describe_for_llm(&day, &agg);
+        std::fs::write(format!("/tmp/digest-{day}.txt"), &text).unwrap();
+        eprintln!("samples={} blocks={} chars={}", samples.len(), agg.blocks.len(), text.chars().count());
+    }
 }

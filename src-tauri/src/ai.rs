@@ -141,20 +141,64 @@ where
     }
 }
 
+/// Output budget per attempt. Reasoning models count hidden thinking against it,
+/// so `reasoning_params` must keep thinking well below this.
+const MAX_TOKENS: u64 = 4096;
+
+/// Provider-specific knobs that cap hidden reasoning. Without a cap, models like
+/// `z-ai/glm-5.3-flash` spend the whole `MAX_TOKENS` budget thinking about a busy
+/// day, never call the `submit` tool, and rig reports "No data extracted" after
+/// `retries` slow attempts.
+fn reasoning_params(provider: AiProvider) -> Option<serde_json::Value> {
+    match provider {
+        // OpenRouter normalises this for every upstream (Anthropic budget, OpenAI
+        // effort, GLM/Gemini thinking budget); non-reasoning models ignore it.
+        AiProvider::Openrouter => Some(serde_json::json!({ "reasoning": { "max_tokens": 1024 } })),
+        _ => None,
+    }
+}
+
 async fn run<C, T>(client: C, cfg: &AiConfig, preamble: &str, text: &str) -> AppResult<T>
 where
     C: AgentClientExt,
     C::CompletionModel: 'static,
     T: JsonSchema + DeserializeOwned + Serialize + Send + Sync + 'static,
 {
-    let extractor = client
+    let mut builder = client
         .extractor::<T>(cfg.model.as_str())
         .preamble(preamble)
-        .max_tokens(4096)
-        .retries(2)
-        .build();
+        .max_tokens(MAX_TOKENS)
+        .retries(2);
+    if let Some(params) = reasoning_params(cfg.provider) {
+        builder = builder.additional_params(params);
+    }
+    let extractor = builder.build();
     extractor
         .extract(text)
         .await
         .map_err(|e| AppError::Ai(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Live check against the configured provider. Run with:
+    /// `FLOWRLY_DIGEST=/tmp/digest-2026-10-02.txt cargo test --lib live_suggest -- --ignored --nocapture`
+    /// (dump a digest first with `activity::tests::dump_digest`).
+    #[tokio::test]
+    #[ignore]
+    async fn live_suggest() {
+        let text = std::fs::read_to_string(std::env::var("FLOWRLY_DIGEST").unwrap()).unwrap();
+        let provider = std::env::var("FLOWRLY_PROVIDER").unwrap_or("openrouter".into());
+        let cfg = AiConfig {
+            provider: serde_json::from_value(serde_json::Value::String(provider)).unwrap(),
+            model: std::env::var("FLOWRLY_MODEL").unwrap_or("z-ai/glm-5.3-flash".into()),
+            base_url: None,
+            api_key: std::env::var("FLOWRLY_API_KEY").ok(),
+        };
+        let t = std::time::Instant::now();
+        let out: SuggestionOut = extract(&cfg, &suggestion_preamble(), &text).await.unwrap();
+        eprintln!("{:?} in {:.1}s", out, t.elapsed().as_secs_f32());
+    }
 }
