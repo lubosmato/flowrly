@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use tauri::menu::{Menu, MenuBuilder, MenuItem, MenuItemBuilder, SubmenuBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 use tauri_specta::{collect_commands, Builder, ErrorHandlingMode};
 
 use commands::AppState;
@@ -177,8 +177,15 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Dock click or relaunch while the window is hidden in the tray.
+            if let RunEvent::Reopen { has_visible_windows, .. } = event {
+                log::info!("reopen (visible windows: {has_visible_windows})");
+                show_main(app);
+            }
+        });
 }
 
 fn backup_if_due(state: &AppState) {
