@@ -1,6 +1,6 @@
 [package]
 name = "flowrly"
-version = "0.1.5"
+version = "0.1.6"
 description = "Flowrly: time tracking and invoicing for freelancers"
 authors = ["Lubos Matejcik"]
 edition = "2021"
