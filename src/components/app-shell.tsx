@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Link, useMatches, useRouter, useRouterState } from "@tanstack/react-router";
+import { listen } from "@tauri-apps/api/event";
 import { AnimatePresence, motion } from "motion/react";
 import { CalendarDays, ListChecks, Sparkles, Users, Settings2 } from "lucide-react";
 import { cn } from "cn";
@@ -6,12 +8,29 @@ import { Nebula } from "@/components/nebula";
 import mark from "@/assets/mark.png";
 
 const NAV = [
-  { to: "/", label: "Calendar", icon: CalendarDays },
-  { to: "/entries", label: "Entries", icon: ListChecks },
-  { to: "/dashboard", label: "Activity", icon: Sparkles },
-  { to: "/clients", label: "Clients", icon: Users },
-  { to: "/settings", label: "Settings", icon: Settings2 },
+  { to: "/", label: "Calendar", icon: CalendarDays, keys: ["1"] },
+  { to: "/entries", label: "Entries", icon: ListChecks, keys: ["2"] },
+  { to: "/dashboard", label: "Activity", icon: Sparkles, keys: ["3"] },
+  { to: "/clients", label: "Clients", icon: Users, keys: ["4"] },
+  { to: "/settings", label: "Settings", icon: Settings2, keys: ["5", ","] },
 ] as const;
+
+/**
+ * Shortcuts live in the native "Go" menu (see `build_menu` in lib.rs), so
+ * macOS handles accelerators regardless of keyboard layout. Rust forwards the
+ * chosen item id here: `nav:<path>` switches screens, `new-entry` opens the
+ * log-time form on the calendar.
+ */
+function useMenuActions() {
+  const router = useRouter();
+  useEffect(() => {
+    const unlisten = listen<string>("menu-action", ({ payload }) => {
+      if (payload === "new-entry") void router.navigate({ to: "/", search: { new: true } });
+      else if (payload.startsWith("nav:")) void router.navigate({ to: payload.slice(4) });
+    });
+    return () => void unlisten.then((f) => f());
+  }, [router]);
+}
 
 /**
  * Fades pages in and out on the live DOM (no View Transitions snapshots, which
@@ -42,19 +61,20 @@ function AnimatedPage() {
 
 export function AppShell() {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  useMenuActions();
   return (
     <div className="flex h-screen w-screen">
       <Nebula />
       <aside data-tauri-drag-region className="flex w-[88px] shrink-0 flex-col items-center pt-12 pb-6">
         <img src={mark} alt="Flowrly" className="mb-8 size-11 select-none drop-shadow-sm" draggable={false} />
         <nav className="flex flex-col items-center gap-1.5">
-          {NAV.map(({ to, label, icon: Icon }) => {
+          {NAV.map(({ to, label, icon: Icon, keys }) => {
             const active = path === to;
             return (
               <Link
                 key={to}
                 to={to}
-                title={label}
+                title={`${label} (${keys.map((k) => `⌘${k}`).join(", ")})`}
                 className={cn(
                   "group flex w-16 flex-col items-center gap-1 rounded-2xl border border-transparent px-2 py-2.5 text-[11px] font-medium transition-all",
                   active

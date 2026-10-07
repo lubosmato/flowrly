@@ -8,7 +8,13 @@ import { SettingsPage } from "@/routes/settings";
 
 const rootRoute = createRootRoute({ component: AppShell });
 
-const calendarRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: CalendarPage });
+const calendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  component: CalendarPage,
+  // `?new` opens the log-time form for the selected day (used by ⌘N).
+  validateSearch: (s: Record<string, unknown>): { new?: true } => (s.new ? { new: true } : {}),
+});
 const entriesRoute = createRoute({ getParentRoute: () => rootRoute, path: "/entries", component: EntriesPage });
 const dashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: "/dashboard", component: DashboardPage });
 const clientsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/clients", component: ClientsPage });

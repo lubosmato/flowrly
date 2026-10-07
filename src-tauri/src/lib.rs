@@ -15,9 +15,9 @@ mod tracker;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
-use tauri::menu::{Menu, MenuItem};
+use tauri::menu::{Menu, MenuBuilder, MenuItem, MenuItemBuilder, SubmenuBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_specta::{collect_commands, Builder, ErrorHandlingMode};
 
 use commands::AppState;
@@ -85,8 +85,16 @@ pub fn run() {
             None,
         ))
         .invoke_handler(builder.invoke_handler())
+        .on_menu_event(|app, event| {
+            let id = event.id.as_ref();
+            if id.starts_with("nav:") || id == "new-entry" {
+                show_main(app);
+                let _ = app.emit("menu-action", id);
+            }
+        })
         .setup(move |app| {
             builder.mount_events(app);
+            app.set_menu(build_menu(app.handle())?)?;
 
             let app_data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data_dir)?;
@@ -187,6 +195,49 @@ fn backup_if_due(state: &AppState) {
             Err(e) => log::error!("backup failed: {e}"),
         }
     }
+}
+
+/// App menu with a "Go" submenu listing every shortcut. Items with ids
+/// `nav:<path>` / `new-entry` are forwarded to the webview as `menu-action`.
+fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
+    let item = |id: &str, label: &str, accel: &str| MenuItemBuilder::with_id(id, label).accelerator(accel).build(app);
+
+    let app_menu = SubmenuBuilder::new(app, "Flowrly")
+        .about(None)
+        .separator()
+        .item(&item("nav:/settings", "Settings…", "Cmd+,")?)
+        .separator()
+        .services()
+        .separator()
+        .hide()
+        .hide_others()
+        .show_all()
+        .separator()
+        .quit()
+        .build()?;
+    let file = SubmenuBuilder::new(app, "File").close_window().build()?;
+    let edit = SubmenuBuilder::new(app, "Edit")
+        .undo()
+        .redo()
+        .separator()
+        .cut()
+        .copy()
+        .paste()
+        .select_all()
+        .build()?;
+    let view = SubmenuBuilder::new(app, "View").fullscreen().build()?;
+    let go = SubmenuBuilder::new(app, "Go")
+        .item(&item("new-entry", "Log Time", "Cmd+N")?)
+        .separator()
+        .item(&item("nav:/", "Calendar", "Cmd+1")?)
+        .item(&item("nav:/entries", "Entries", "Cmd+2")?)
+        .item(&item("nav:/dashboard", "Activity", "Cmd+3")?)
+        .item(&item("nav:/clients", "Clients", "Cmd+4")?)
+        .item(&item("nav:/settings", "Settings", "Cmd+5")?)
+        .build()?;
+    let window = SubmenuBuilder::new(app, "Window").minimize().maximize().separator().close_window().build()?;
+
+    MenuBuilder::new(app).items(&[&app_menu, &file, &edit, &view, &go, &window]).build()
 }
 
 fn show_main(app: &tauri::AppHandle) {

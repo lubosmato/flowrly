@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   addMonths,
   eachDayOfInterval,
@@ -168,6 +169,17 @@ function DayPanel({ day }: { day: string }) {
     setLastDay(day);
     setEditing(null);
   }
+
+  // ⌘N lands here with `?new`; open the form once and drop the flag.
+  // `strict: false`: this page keeps rendering while fading out after a route
+  // change (AnimatePresence), when "/" is no longer an active match.
+  const openNew = useSearch({ strict: false, select: (s) => "new" in s && s.new === true });
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!openNew) return;
+    setEditing("new");
+    void navigate({ to: "/", search: {}, replace: true });
+  }, [openNew, navigate]);
 
   return (
     <aside className="flex w-[400px] shrink-0 flex-col pr-10 pb-8">
