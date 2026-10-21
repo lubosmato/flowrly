@@ -22,8 +22,22 @@ import { ENTRY_KEYS, errorMessage, useClients, useDeleteEntry, useEntries, useSe
 import { fmtHours, fmtMinutes, invoicedLabel, isoDay, money, shortDay } from "@/lib/format";
 import { workload } from "@/lib/workload";
 
+const ENTRIES_CLIENT_KEY = "flowrly.entriesClient";
+
 export function EntriesPage() {
-  const [clientId, setClientId] = useState<string>("all");
+  // Saved filter ("all" or a client id) wins; else the only client; else all clients.
+  const [savedClient, setSavedClient] = useState(() => localStorage.getItem(ENTRIES_CLIENT_KEY));
+  const { data: clients = [], isSuccess: clientsLoaded } = useClients();
+  const clientId =
+    savedClient === "all" || (savedClient && (!clientsLoaded || clients.some((c) => String(c.id) === savedClient)))
+      ? savedClient
+      : clients.length === 1
+        ? String(clients[0].id)
+        : "all";
+  const setClientId = (v: string) => {
+    localStorage.setItem(ENTRIES_CLIENT_KEY, v);
+    setSavedClient(v);
+  };
   const [from, setFrom] = useState(() => isoDay(startOfMonth(new Date())));
   const [to, setTo] = useState(() => isoDay(endOfMonth(new Date())));
   const [editing, setEditing] = useState<TimeEntry | null>(null);
@@ -34,7 +48,6 @@ export function EntriesPage() {
     [clientId, from, to],
   );
   const { data: entries = [], isLoading } = useEntries(filter);
-  const { data: clients = [] } = useClients();
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const del = useDeleteEntry();
   const confirm = useConfirm();
