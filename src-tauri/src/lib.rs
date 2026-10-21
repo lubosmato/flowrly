@@ -34,6 +34,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::day_totals,
             commands::create_entry,
             commands::update_entry,
+            commands::set_entry_invoice,
             commands::delete_entry,
             commands::get_settings,
             commands::save_settings,

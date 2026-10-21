@@ -51,6 +51,9 @@ pub struct TimeEntry {
     /// HH:MM
     pub end_time: Option<String>,
     pub description: String,
+    /// Fakturoid number of the Invoice this entry went into. None = not invoiced,
+    /// "" = invoiced but the number is unknown.
+    pub invoice_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -78,6 +81,8 @@ pub struct DayTotal {
     pub date: String,
     pub client_id: i32,
     pub minutes: i32,
+    pub entry_count: i32,
+    pub invoiced_count: i32,
 }
 
 // ---------- Activity ----------
@@ -237,6 +242,11 @@ pub struct InvoicePreview {
     pub vat_rate: i32,
     pub subtotal: f64,
     pub entry_count: i32,
+    /// Entries in the filter that are already invoiced, whether or not they are skipped.
+    pub invoiced_count: i32,
+    pub invoiced_minutes: i32,
+    /// Distinct known numbers of those earlier invoices.
+    pub invoiced_numbers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

@@ -77,6 +77,8 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE clients ADD COLUMN pensum_percent INTEGER NOT NULL DEFAULT 100;
     ALTER TABLE clients ADD COLUMN workday_hours REAL NOT NULL DEFAULT 8;
     "#,
+    // 0004: invoice number per entry (NULL = not invoiced, '' = invoiced, number unknown)
+    r#"ALTER TABLE time_entries ADD COLUMN invoice_number TEXT;"#,
 ];
 
 pub fn migrations() -> Migrations<'static> {

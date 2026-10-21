@@ -49,7 +49,11 @@ Price per hour of work, set per Client. The only pricing fact the app owns.
 _Avoid_: Price, tariff, fee
 
 **Invoice**:
-A Fakturoid document created from a filtered list of Time Entries for one Client: one line, quantity = total hours exact to two decimals, at the Client's Hourly Rate. The app does not keep its own copy of the invoice or mark entries as billed; Fakturoid is the only record.
+A Fakturoid document created from a filtered list of Time Entries for one Client: one line, quantity = total hours exact to two decimals, at the Client's Hourly Rate. The app keeps no copy of the invoice itself; Fakturoid is the only record. Each Time Entry only remembers the Invoice Number it went into.
+
+**Invoice Number**:
+The Fakturoid number stored on a Time Entry once it is invoiced, set when the app creates the Invoice or entered by hand. Empty means invoiced but number unknown; none means not invoiced. A day is invoiced for a Client when all of that Client's entries on it are, partly invoiced when only some are.
+_Avoid_: Billed flag, paid
 _Avoid_: Bill, billing run, statement
 
 **Fakturoid Subject**:

@@ -65,3 +65,6 @@ export function parseTime(raw: string): string | null {
   if (h > 23 || min > 59) return null;
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
+
+/** "Invoiced · 2026-0042", or just "Invoiced" when the number is unknown (""). */
+export const invoicedLabel = (number: string) => (number ? `Invoiced · ${number}` : "Invoiced");

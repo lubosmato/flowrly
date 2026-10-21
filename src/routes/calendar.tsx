@@ -31,7 +31,7 @@ import {
   useGenerateDaySummary,
   useTrackedDays,
 } from "@/lib/api";
-import { fmtHours, fmtMinutes, isoDay, monthLabel, prettyDay } from "@/lib/format";
+import { fmtHours, fmtMinutes, invoicedLabel, isoDay, monthLabel, prettyDay } from "@/lib/format";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -51,11 +51,11 @@ export function CalendarPage() {
 
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const byDay = useMemo(() => {
-    const m = new Map<string, { total: number; clients: Set<number> }>();
+    const m = new Map<string, { total: number; clients: Map<number, "all" | "some" | undefined> }>();
     for (const t of totals) {
-      const d = m.get(t.date) ?? { total: 0, clients: new Set<number>() };
+      const d = m.get(t.date) ?? { total: 0, clients: new Map() };
       d.total += t.minutes;
-      d.clients.add(t.client_id);
+      d.clients.set(t.client_id, t.invoiced_count === 0 ? undefined : t.invoiced_count === t.entry_count ? "all" : "some");
       m.set(t.date, d);
     }
     return m;
@@ -133,9 +133,9 @@ export function CalendarPage() {
                 {info ? (
                   <div className="flex items-end justify-between">
                     <span className="font-display tabular text-2xl leading-none">{fmtHours(info.total, 1)}</span>
-                    <span className="flex gap-1 pb-0.5">
-                      {[...info.clients].slice(0, 4).map((id) => (
-                        <Dot key={id} color={clientById.get(id)?.color ?? "#999"} />
+                    <span className="flex gap-2 pr-1 pb-1">
+                      {[...info.clients].slice(0, 4).map(([id, invoiced]) => (
+                        <Dot key={id} color={clientById.get(id)?.color ?? "#999"} invoiced={invoiced} />
                       ))}
                     </span>
                   </div>
@@ -246,19 +246,26 @@ function DayPanel({ day }: { day: string }) {
               <ul className="flex flex-col gap-2">
                 {entries.map((e) => {
                   const c = clientById.get(e.client_id);
+                  const invoiced = e.invoice_number != null;
                   return (
                     <li
                       key={e.id}
                       className="group flex gap-3 rounded-2xl border border-transparent px-3 py-2.5 transition-colors hover:border-border/60 hover:bg-background/40"
                     >
-                      <span className="mt-1 w-1 shrink-0 self-stretch rounded-full" style={{ background: c?.color ?? "#999" }} />
-                      <div className="min-w-0 flex-1">
+                      <span
+                        className={cn("mt-1 w-1 shrink-0 self-stretch rounded-full", invoiced && "opacity-55")}
+                        style={{ background: c?.color ?? "#999" }}
+                      />
+                      <div className={cn("min-w-0 flex-1", invoiced && "opacity-55")}>
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="truncate text-sm font-medium">{c?.name ?? "Unknown client"}</span>
                           <span className="font-display tabular shrink-0 text-lg">{fmtMinutes(e.duration_minutes)}</span>
                         </div>
                         <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
-                          <span className="truncate">{e.description || "No description"}</span>
+                          <span className="truncate">
+                            {invoiced && <>{invoicedLabel(e.invoice_number!)} · </>}
+                            {e.description || "No description"}
+                          </span>
                           {e.start_time && e.end_time && (
                             <span className="tabular shrink-0">
                               {e.start_time}–{e.end_time}
@@ -274,7 +281,13 @@ function DayPanel({ day }: { day: string }) {
                           variant="ghost"
                           size="icon-xs"
                           onClick={async () => {
-                            if (await confirm({ title: "Delete this entry?", description: `${fmtMinutes(e.duration_minutes)} for ${c?.name ?? "client"}` }))
+                            const what = `${fmtMinutes(e.duration_minutes)} for ${c?.name ?? "client"}`;
+                            if (
+                              await confirm({
+                                title: "Delete this entry?",
+                                description: invoiced ? `${what}. This entry is already invoiced${e.invoice_number ? ` in ${e.invoice_number}` : ""}.` : what,
+                              })
+                            )
                               del.mutate(e.id);
                           }}
                           aria-label="Delete"

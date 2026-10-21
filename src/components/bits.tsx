@@ -38,8 +38,18 @@ export function Empty({ title, hint, action }: { title: string; hint?: string; a
   );
 }
 
-export function Dot({ color, className }: { color: string; className?: string }) {
-  return <span className={cn("inline-block size-2 shrink-0 rounded-full", className)} style={{ background: color }} />;
+/** Client colour dot. `invoiced` draws a ring around it: solid when all of its entries are invoiced, dashed when only some. */
+export function Dot({ color, invoiced, className }: { color: string; invoiced?: "all" | "some"; className?: string }) {
+  return (
+    <span
+      className={cn("inline-block size-2 shrink-0 rounded-full", invoiced && "outline-1 outline-offset-2", className)}
+      style={{
+        background: color,
+        outlineColor: invoiced ? color : undefined,
+        outlineStyle: invoiced === "all" ? "solid" : invoiced === "some" ? "dashed" : undefined,
+      }}
+    />
+  );
 }
 
 export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {

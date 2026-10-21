@@ -85,6 +85,12 @@ pub fn update_entry(state: State<'_, AppState>, id: i32, input: TimeEntryInput) 
 
 #[tauri::command]
 #[specta::specta]
+pub fn set_entry_invoice(state: State<'_, AppState>, id: i32, number: Option<String>) -> AppResult<TimeEntry> {
+    repo::set_entry_invoice(&*state.conn()?, id, number.as_deref())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn delete_entry(state: State<'_, AppState>, id: i32) -> AppResult<()> {
     repo::delete_entry(&*state.conn()?, id)
 }
@@ -311,26 +317,41 @@ pub async fn fakturoid_generators(state: State<'_, AppState>) -> AppResult<Vec<F
     fx.generators(&require_slug(&s)?).await
 }
 
-fn preview(conn: &Connection, filter: &EntryFilter) -> AppResult<(InvoicePreview, Client, Vec<TimeEntry>)> {
+/// With `skip_invoiced`, entries that already carry an invoice number are left out of the
+/// quantity (and of the returned entries); the period label still spans the whole filter.
+fn preview(
+    conn: &Connection,
+    filter: &EntryFilter,
+    skip_invoiced: bool,
+) -> AppResult<(InvoicePreview, Client, Vec<TimeEntry>)> {
     let client_id = filter
         .client_id
         .ok_or_else(|| AppError::Validation("Pick a client to invoice".into()))?;
     let client = repo::get_client(conn, client_id)?;
-    let entries = repo::list_entries(conn, filter)?;
-    if entries.is_empty() {
+    let all = repo::list_entries(conn, filter)?;
+    if all.is_empty() {
         return Err(AppError::Validation("No time entries match the current filter".into()));
     }
+    let (invoiced, open): (Vec<_>, Vec<_>) = all.iter().cloned().partition(|e| e.invoice_number.is_some());
+    let mut invoiced_numbers: Vec<String> = invoiced
+        .iter()
+        .filter_map(|e| e.invoice_number.clone())
+        .filter(|n| !n.is_empty())
+        .collect();
+    invoiced_numbers.sort();
+    invoiced_numbers.dedup();
+    let entries = if skip_invoiced { open } else { all.clone() };
     let total_minutes: i32 = entries.iter().map(|e| e.duration_minutes).sum();
     let from = filter
         .from
         .clone()
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| entries.iter().map(|e| e.date.clone()).min().unwrap_or_default());
+        .unwrap_or_else(|| all.iter().map(|e| e.date.clone()).min().unwrap_or_default());
     let to = filter
         .to
         .clone()
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| entries.iter().map(|e| e.date.clone()).max().unwrap_or_default());
+        .unwrap_or_else(|| all.iter().map(|e| e.date.clone()).max().unwrap_or_default());
     let period_label = invoice::period_label(&from, &to);
     let hours = invoice::hours_exact(total_minutes as i64);
     let preview = InvoicePreview {
@@ -344,25 +365,35 @@ fn preview(conn: &Connection, filter: &EntryFilter) -> AppResult<(InvoicePreview
         vat_rate: client.vat_rate,
         subtotal: hours * client.hourly_rate,
         entry_count: entries.len() as i32,
+        invoiced_count: invoiced.len() as i32,
+        invoiced_minutes: invoiced.iter().map(|e| e.duration_minutes).sum(),
+        invoiced_numbers,
     };
     Ok((preview, client, entries))
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn preview_invoice(state: State<'_, AppState>, filter: EntryFilter) -> AppResult<InvoicePreview> {
-    Ok(preview(&*state.conn()?, &filter)?.0)
+pub fn preview_invoice(state: State<'_, AppState>, filter: EntryFilter, skip_invoiced: bool) -> AppResult<InvoicePreview> {
+    Ok(preview(&*state.conn()?, &filter, skip_invoiced)?.0)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn create_invoice(state: State<'_, AppState>, filter: EntryFilter) -> AppResult<CreatedInvoice> {
-    let (prev, client, fx, settings) = {
+pub async fn create_invoice(
+    state: State<'_, AppState>,
+    filter: EntryFilter,
+    skip_invoiced: bool,
+) -> AppResult<CreatedInvoice> {
+    let (prev, client, entries, fx, settings) = {
         let conn = state.conn()?;
-        let (prev, client, _) = preview(&conn, &filter)?;
+        let (prev, client, entries) = preview(&conn, &filter, skip_invoiced)?;
         let (fx, settings) = fakturoid(&state, &conn)?;
-        (prev, client, fx, settings)
+        (prev, client, entries, fx, settings)
     };
+    if entries.is_empty() {
+        return Err(AppError::Validation("Every entry in this range is already invoiced".into()));
+    }
     let slug = require_slug(&settings)?;
     if client.fakturoid_subject_id.is_none() && client.fakturoid_generator_id.is_none() {
         return Err(AppError::Validation(
@@ -374,7 +405,15 @@ pub async fn create_invoice(state: State<'_, AppState>, filter: EntryFilter) -> 
         None => None,
     };
     let body = invoice::build_invoice_body(&client, generator.as_ref(), prev.hours, &prev.period_label);
-    fx.create_invoice(&slug, &body).await
+    let created = fx.create_invoice(&slug, &body).await?;
+    let ids: Vec<i32> = entries.iter().map(|e| e.id).collect();
+    repo::mark_entries_invoiced(&*state.conn()?, &ids, &created.number).map_err(|e| {
+        AppError::Db(format!(
+            "Invoice {} was created, but its entries could not be marked as invoiced: {e}",
+            created.number
+        ))
+    })?;
+    Ok(created)
 }
 
 // ---------- CSV ----------

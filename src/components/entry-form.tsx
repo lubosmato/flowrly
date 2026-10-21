@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Field, Dot } from "@/components/bits";
 import { DatePicker } from "@/components/date-picker";
 import { errorMessage, useClients, useCreateEntry, useUpdateEntry } from "@/lib/api";
-import { fmtMinutes, parseDuration, parseTime } from "@/lib/format";
+import { fmtMinutes, invoicedLabel, parseDuration, parseTime } from "@/lib/format";
 
 const LAST_CLIENT_KEY = "flowrly.lastClient";
 
@@ -118,6 +118,9 @@ export function EntryForm({
         }
       }}
     >
+      {entry?.invoice_number != null && (
+        <p className="text-xs text-muted-foreground">{invoicedLabel(entry.invoice_number)}. Changes here won't update the invoice.</p>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Client">
           <Select value={clientId} onValueChange={setClientId}>

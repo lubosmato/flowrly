@@ -165,10 +165,11 @@ fn entry_from_row(r: &Row) -> rusqlite::Result<TimeEntry> {
         start_time: r.get("start_time")?,
         end_time: r.get("end_time")?,
         description: r.get("description")?,
+        invoice_number: r.get("invoice_number")?,
     })
 }
 
-const ENTRY_COLS: &str = "id, client_id, date, duration_minutes, start_time, end_time, description";
+const ENTRY_COLS: &str = "id, client_id, date, duration_minutes, start_time, end_time, description, invoice_number";
 
 fn parse_date(s: &str) -> AppResult<NaiveDate> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d")
@@ -251,11 +252,17 @@ pub fn list_entries(conn: &Connection, filter: &EntryFilter) -> AppResult<Vec<Ti
 
 pub fn day_totals(conn: &Connection, from: &str, to: &str) -> AppResult<Vec<DayTotal>> {
     let mut stmt = conn.prepare(
-        "SELECT date, client_id, sum(duration_minutes) FROM time_entries
+        "SELECT date, client_id, sum(duration_minutes), count(*), count(invoice_number) FROM time_entries
          WHERE date BETWEEN ?1 AND ?2 GROUP BY date, client_id ORDER BY date",
     )?;
     let rows = stmt.query_map(params![from, to], |r| {
-        Ok(DayTotal { date: r.get(0)?, client_id: r.get(1)?, minutes: r.get(2)? })
+        Ok(DayTotal {
+            date: r.get(0)?,
+            client_id: r.get(1)?,
+            minutes: r.get(2)?,
+            entry_count: r.get(3)?,
+            invoiced_count: r.get(4)?,
+        })
     })?;
     Ok(rows.collect::<Result<_, _>>()?)
 }
@@ -289,6 +296,30 @@ pub fn update_entry(conn: &Connection, id: i32, input: &TimeEntryInput) -> AppRe
         return Err(AppError::NotFound(format!("Entry {id} not found")));
     }
     get_entry(conn, id)
+}
+
+/// Marks one entry as invoiced under `number` (trimmed; may be empty), or clears the mark with None.
+pub fn set_entry_invoice(conn: &Connection, id: i32, number: Option<&str>) -> AppResult<TimeEntry> {
+    let n = conn.execute(
+        "UPDATE time_entries SET invoice_number = ?1 WHERE id = ?2",
+        params![number.map(str::trim), id],
+    )?;
+    if n == 0 {
+        return Err(AppError::NotFound(format!("Entry {id} not found")));
+    }
+    get_entry(conn, id)
+}
+
+pub fn mark_entries_invoiced(conn: &Connection, ids: &[i32], number: &str) -> AppResult<()> {
+    let tx = conn.unchecked_transaction()?;
+    {
+        let mut stmt = tx.prepare("UPDATE time_entries SET invoice_number = ?1 WHERE id = ?2")?;
+        for id in ids {
+            stmt.execute(params![number, id])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 pub fn delete_entry(conn: &Connection, id: i32) -> AppResult<()> {
@@ -449,6 +480,11 @@ mod tests {
         assert!(delete_client(&conn, c.id).is_err());
         let totals = day_totals(&conn, "2026-09-01", "2026-09-30").unwrap();
         assert_eq!(totals[0].minutes, 60);
+        assert_eq!(totals[0].invoiced_count, 0);
+        mark_entries_invoiced(&conn, &[e.id], "2026-0042").unwrap();
+        assert_eq!(get_entry(&conn, e.id).unwrap().invoice_number.as_deref(), Some("2026-0042"));
+        assert_eq!(day_totals(&conn, "2026-09-01", "2026-09-30").unwrap()[0].invoiced_count, 1);
+        assert_eq!(set_entry_invoice(&conn, e.id, None).unwrap().invoice_number, None);
         delete_entry(&conn, e.id).unwrap();
         delete_client(&conn, c.id).unwrap();
 

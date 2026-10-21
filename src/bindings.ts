@@ -14,6 +14,7 @@ export const commands = {
 	dayTotals: (from: string, to: string) => __TAURI_INVOKE<DayTotal[]>("day_totals", { from, to }),
 	createEntry: (input: TimeEntryInput) => __TAURI_INVOKE<TimeEntry>("create_entry", { input }),
 	updateEntry: (id: number, input: TimeEntryInput) => __TAURI_INVOKE<TimeEntry>("update_entry", { id, input }),
+	setEntryInvoice: (id: number, number: string | null) => __TAURI_INVOKE<TimeEntry>("set_entry_invoice", { id, number }),
 	deleteEntry: (id: number) => __TAURI_INVOKE<null>("delete_entry", { id }),
 	getSettings: () => __TAURI_INVOKE<Settings>("get_settings"),
 	saveSettings: (settings: Settings) => __TAURI_INVOKE<Settings>("save_settings", { settings }),
@@ -37,8 +38,8 @@ export const commands = {
 	fakturoidAccounts: () => __TAURI_INVOKE<FakturoidAccount[]>("fakturoid_accounts"),
 	fakturoidSubjects: () => __TAURI_INVOKE<FakturoidSubject[]>("fakturoid_subjects"),
 	fakturoidGenerators: () => __TAURI_INVOKE<FakturoidGenerator[]>("fakturoid_generators"),
-	previewInvoice: (filter: EntryFilter) => __TAURI_INVOKE<InvoicePreview>("preview_invoice", { filter }),
-	createInvoice: (filter: EntryFilter) => __TAURI_INVOKE<CreatedInvoice>("create_invoice", { filter }),
+	previewInvoice: (filter: EntryFilter, skipInvoiced: boolean) => __TAURI_INVOKE<InvoicePreview>("preview_invoice", { filter, skipInvoiced }),
+	createInvoice: (filter: EntryFilter, skipInvoiced: boolean) => __TAURI_INVOKE<CreatedInvoice>("create_invoice", { filter, skipInvoiced }),
 	exportCsv: (filter: EntryFilter, path: string) => __TAURI_INVOKE<number>("export_csv", { filter, path }),
 	listBackups: () => __TAURI_INVOKE<BackupFile[]>("list_backups"),
 	backupNow: () => __TAURI_INVOKE<BackupFile>("backup_now"),
@@ -137,6 +138,8 @@ export type DayTotal = {
 	date: string,
 	client_id: number,
 	minutes: number,
+	entry_count: number,
+	invoiced_count: number,
 };
 
 export type EntryFilter = {
@@ -175,6 +178,11 @@ export type InvoicePreview = {
 	vat_rate: number,
 	subtotal: number | null,
 	entry_count: number,
+	/**  Entries in the filter that are already invoiced, whether or not they are skipped. */
+	invoiced_count: number,
+	invoiced_minutes: number,
+	/**  Distinct known numbers of those earlier invoices. */
+	invoiced_numbers: string[],
 };
 
 export type SecretKey = "fakturoid_client_secret" | "ai_api_key";
@@ -216,6 +224,11 @@ export type TimeEntry = {
 	/**  HH:MM */
 	end_time: string | null,
 	description: string,
+	/**
+	 *  Fakturoid number of the Invoice this entry went into. None = not invoiced,
+	 *  "" = invoiced but the number is unknown.
+	 */
+	invoice_number: string | null,
 };
 
 export type TimeEntryInput = {

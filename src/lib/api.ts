@@ -76,12 +76,14 @@ function useInvalidating<TData, TVars>(
   });
 }
 
-const ENTRY_KEYS = [["entries"], ["dayTotals"]] as const;
+export const ENTRY_KEYS = [["entries"], ["dayTotals"]] as const;
 
 export const useCreateEntry = (opts?: Parameters<typeof useInvalidating>[2]) =>
   useInvalidating((input: TimeEntryInput) => commands.createEntry(input), ENTRY_KEYS, opts);
 export const useUpdateEntry = (opts?: Parameters<typeof useInvalidating>[2]) =>
   useInvalidating(({ id, input }: { id: number; input: TimeEntryInput }) => commands.updateEntry(id, input), ENTRY_KEYS, opts);
+export const useSetEntryInvoice = (opts?: Parameters<typeof useInvalidating>[2]) =>
+  useInvalidating(({ id, number }: { id: number; number: string | null }) => commands.setEntryInvoice(id, number), ENTRY_KEYS, opts);
 export const useDeleteEntry = (opts?: Parameters<typeof useInvalidating>[2]) =>
   useInvalidating((id: number) => commands.deleteEntry(id), ENTRY_KEYS, opts);
 

@@ -1,20 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { addMonths, endOfMonth, startOfMonth } from "date-fns";
 import { save } from "@tauri-apps/plugin-dialog";
-import { ChevronLeft, ChevronRight, Download, FileText, Loader2, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Download, FileCheck, FileText, FileX, Loader2, ExternalLink, Pencil, Trash2, TriangleAlert } from "lucide-react";
+import { cn } from "cn";
 import { toast } from "sonner";
 import { commands, type Client, type CreatedInvoice, type EntryFilter, type InvoicePreview, type TimeEntry } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dot, Empty, PageHeader, Stat } from "@/components/bits";
 import { EntryForm } from "@/components/entry-form";
 import { DateRangePicker } from "@/components/date-picker";
 import { useConfirm } from "@/components/confirm";
-import { errorMessage, useClients, useDeleteEntry, useEntries } from "@/lib/api";
-import { fmtHours, fmtMinutes, isoDay, money, shortDay } from "@/lib/format";
+import { ENTRY_KEYS, errorMessage, useClients, useDeleteEntry, useEntries, useSetEntryInvoice } from "@/lib/api";
+import { fmtHours, fmtMinutes, invoicedLabel, isoDay, money, shortDay } from "@/lib/format";
 import { workload } from "@/lib/workload";
 
 export function EntriesPage() {
@@ -35,6 +40,7 @@ export function EntriesPage() {
   const confirm = useConfirm();
 
   const total = entries.reduce((a, e) => a + e.duration_minutes, 0);
+  const invoicedTotal = entries.reduce((a, e) => a + (e.invoice_number != null ? e.duration_minutes : 0), 0);
   const client = clientId === "all" ? null : clientById.get(Number(clientId));
 
   const shiftMonth = (n: number) => {
@@ -133,26 +139,50 @@ export function EntriesPage() {
                     <th className="px-3 py-3 text-left font-medium">Time</th>
                     <th className="px-3 py-3 text-right font-medium">Duration</th>
                     <th className="px-3 py-3 text-left font-medium">Description</th>
-                    <th className="w-20 px-3 py-3" />
+                    <th className="w-24 px-3 py-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((e) => {
                     const c = clientById.get(e.client_id);
+                    const invoiced = e.invoice_number != null;
                     return (
-                      <tr key={e.id} className="group border-t border-border/50 transition-colors hover:bg-foreground/[0.03]">
+                      <tr
+                        key={e.id}
+                        className={cn(
+                          "group border-t border-border/50 transition-colors hover:bg-foreground/[0.03]",
+                          invoiced && "[&>td:not(:last-child)]:opacity-55",
+                        )}
+                      >
                         <td className="tabular px-6 py-2.5 whitespace-nowrap">{shortDay(e.date)}</td>
                         <td className="px-3 py-2.5 whitespace-nowrap">
-                          <Dot color={c?.color ?? "#999"} className="mr-2" />
+                          {invoiced ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="mr-2 inline-flex">
+                                  <Dot color={c?.color ?? "#999"} invoiced="all" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>{invoicedLabel(e.invoice_number!)}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Dot color={c?.color ?? "#999"} className="mr-2" />
+                          )}
                           {c?.name}
                         </td>
                         <td className="tabular px-3 py-2.5 whitespace-nowrap text-muted-foreground">
                           {e.start_time && e.end_time ? `${e.start_time}–${e.end_time}` : ""}
                         </td>
                         <td className="font-display tabular px-3 py-2.5 text-right text-base whitespace-nowrap">{fmtMinutes(e.duration_minutes)}</td>
-                        <td className="max-w-md truncate px-3 py-2.5 text-muted-foreground">{e.description}</td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <td className="px-3 py-2.5 text-muted-foreground">
+                          <div className="max-w-md truncate" title={e.description}>
+                            {e.description}
+                          </div>
+                        </td>
+                        {/* Pinned to the right edge so the actions stay reachable when the table scrolls sideways. */}
+                        <td className="sticky right-0 px-3 py-1.5">
+                          <div className="flex justify-end gap-0.5 rounded-xl bg-popover/80 p-1 opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 has-[[data-state=open]]:opacity-100">
+                            <InvoiceMarkButton entry={e} />
                             <Button variant="ghost" size="icon-xs" onClick={() => setEditing(e)} aria-label="Edit">
                               <Pencil />
                             </Button>
@@ -160,7 +190,13 @@ export function EntriesPage() {
                               variant="ghost"
                               size="icon-xs"
                               onClick={async () => {
-                                if (await confirm({ title: "Delete this entry?", description: `${shortDay(e.date)} · ${fmtMinutes(e.duration_minutes)} for ${c?.name ?? "client"}` }))
+                                const what = `${shortDay(e.date)} · ${fmtMinutes(e.duration_minutes)} for ${c?.name ?? "client"}`;
+                                if (
+                                  await confirm({
+                                    title: "Delete this entry?",
+                                    description: invoiced ? `${what}. This entry is already invoiced${e.invoice_number ? ` in ${e.invoice_number}` : ""}.` : what,
+                                  })
+                                )
                                   del.mutate(e.id);
                               }}
                               aria-label="Delete"
@@ -175,13 +211,18 @@ export function EntriesPage() {
                 </tbody>
               </table>
             )}
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
 
         <aside className="glass flex w-64 shrink-0 flex-col gap-6 rounded-3xl p-6">
           <Stat label="Entries" value={entries.length} />
           <Stat label="Logged" value={`${fmtHours(total)} h`} sub={fmtMinutes(total)} />
-          <Stat label="Billable" value={`${fmtHours(total)} h`} sub="exact, no rounding" />
+          <Stat
+            label="Billable"
+            value={`${fmtHours(total)} h`}
+            sub={invoicedTotal > 0 ? `${fmtHours(invoicedTotal)} h already invoiced` : "exact, no rounding"}
+          />
           {client && (
             <Stat
               label="Estimate"
@@ -223,28 +264,37 @@ function InvoiceDialog({
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreatedInvoice | null>(null);
+  const [skipInvoiced, setSkipInvoiced] = useState(true);
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (!open) return;
-    let cancelled = false;
     setPreview(null);
-    setError(null);
     setCreated(null);
+    setSkipInvoiced(true);
+  }, [open]);
+
+  // Keeps the previous preview on screen while the Skip/Include switch refetches.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setError(null);
     commands
-      .previewInvoice(filter)
+      .previewInvoice(filter, skipInvoiced)
       .then((p) => !cancelled && setPreview(p))
       .catch((e) => !cancelled && setError(errorMessage(e)));
     return () => {
       cancelled = true;
     };
-  }, [open, filter]);
+  }, [open, filter, skipInvoiced]);
 
   const create = async () => {
     setCreating(true);
     try {
-      const inv = await commands.createInvoice(filter);
+      const inv = await commands.createInvoice(filter, skipInvoiced);
       setCreated(inv);
       toast.success(`Invoice ${inv.number} created`);
+      await Promise.all(ENTRY_KEYS.map((k) => qc.invalidateQueries({ queryKey: k })));
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -271,6 +321,28 @@ function InvoiceDialog({
             </Button>
           </div>
         ) : preview ? (
+          <>
+          {preview.invoiced_count > 0 && (
+            <div className="flex flex-col gap-3 rounded-xl bg-primary/10 p-3 text-sm">
+              <p className="flex gap-2">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>
+                  {preview.invoiced_count} {preview.invoiced_count === 1 ? "entry" : "entries"} ({fmtHours(preview.invoiced_minutes)} h) already
+                  invoiced{preview.invoiced_numbers.length > 0 && ` in ${preview.invoiced_numbers.join(", ")}`}.
+                </span>
+              </p>
+              <Tabs value={skipInvoiced ? "skip" : "include"} onValueChange={(v) => setSkipInvoiced(v === "skip")}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="skip" className="flex-1">
+                    Skip invoiced
+                  </TabsTrigger>
+                  <TabsTrigger value="include" className="flex-1">
+                    Include all
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          )}
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 py-2 text-sm">
             <dt className="text-muted-foreground">Line</dt>
             <dd>{preview.line_name}</dd>
@@ -287,6 +359,7 @@ function InvoiceDialog({
             <dt className="text-muted-foreground">Subtotal</dt>
             <dd className="font-display tabular text-xl">{money(preview.subtotal, preview.currency)}</dd>
           </dl>
+          </>
         ) : (
           !error && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -300,7 +373,7 @@ function InvoiceDialog({
             {created ? "Done" : "Cancel"}
           </Button>
           {!created && (
-            <Button onClick={create} disabled={!preview || creating}>
+            <Button onClick={create} disabled={!preview || preview.entry_count === 0 || creating}>
               {creating ? <Loader2 className="animate-spin" /> : <FileText />}
               Create in Fakturoid
             </Button>
@@ -308,6 +381,50 @@ function InvoiceDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Row action: clears the invoice mark at once, or asks for an optional number before setting it. */
+function InvoiceMarkButton({ entry }: { entry: TimeEntry }) {
+  const [open, setOpen] = useState(false);
+  const [number, setNumber] = useState("");
+  const mark = useSetEntryInvoice({ onSuccess: () => setOpen(false) });
+
+  if (entry.invoice_number != null) {
+    return (
+      <Button variant="ghost" size="icon-xs" onClick={() => mark.mutate({ id: entry.id, number: null })} aria-label="Mark not invoiced" title="Mark not invoiced">
+        <FileX />
+      </Button>
+    );
+  }
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setNumber("");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon-xs" aria-label="Mark invoiced" title="Mark invoiced">
+          <FileCheck />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64">
+        <form
+          className="flex flex-col gap-2.5"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            mark.mutate({ id: entry.id, number: number.trim() });
+          }}
+        >
+          <Input autoFocus value={number} onChange={(ev) => setNumber(ev.target.value)} placeholder="Invoice number (optional)" />
+          <Button type="submit" size="sm" className="self-end" disabled={mark.isPending}>
+            Mark invoiced
+          </Button>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }
 
