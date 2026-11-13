@@ -33,9 +33,10 @@ function useMenuActions() {
 }
 
 /**
- * Fades pages in and out on the live DOM (no View Transitions snapshots, which
- * break backdrop-filter panels). The exiting page keeps rendering its own
- * component, so the swap is never visible mid-fade.
+ * Cross-fades pages on the live DOM (no View Transitions snapshots, which
+ * break backdrop-filter panels). Both pages are stacked for the length of the
+ * fade, so the window never passes through an empty frame, and the exiting page
+ * keeps rendering its own component, so the swap is never visible mid-fade.
  */
 function AnimatedPage() {
   const router = useRouter();
@@ -44,14 +45,14 @@ function AnimatedPage() {
     | React.ComponentType
     | undefined;
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence initial={false}>
       <motion.div
         key={leaf.routeId}
-        className="h-full"
+        className="absolute inset-0"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.13, ease: "linear" }}
+        transition={{ duration: 0.15, ease: "linear" }}
       >
         {Page ? <Page /> : null}
       </motion.div>
@@ -91,7 +92,7 @@ export function AppShell() {
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <div data-tauri-drag-region className="h-10 shrink-0" />
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <AnimatedPage />
         </div>
       </main>
