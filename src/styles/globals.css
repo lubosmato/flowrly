@@ -212,56 +212,57 @@
   inset: 0;
   background: radial-gradient(ellipse at 50% 120%, transparent 40%, var(--background) 100%);
 }
+/*
+ * Each blob is a disc of diameter --d blurred by --nebula-blur, drawn as a
+ * radial gradient whose stops follow the Gaussian falloff. Keep it static and
+ * do not go back to `filter: blur()`: WebKit re-runs a live filter on every
+ * composited frame, and an animated backdrop forces a full-window recomposite
+ * plus a re-blur of every `.glass` panel. Together that kept the GPU ~50% busy
+ * and made all scrolling drop frames.
+ */
 .blob {
+  --s: var(--nebula-blur);
+  --r: calc(var(--d) / 2);
+  --k: 1;
   position: absolute;
-  border-radius: 9999px;
-  filter: blur(var(--nebula-blur));
-  will-change: transform;
-  animation: drift 38s ease-in-out infinite alternate;
+  width: calc(var(--d) + 5 * var(--s));
+  height: calc(var(--d) + 5 * var(--s));
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in oklch, var(--c) calc(99.4% * var(--k)), transparent) calc(var(--r) - 2.5 * var(--s)),
+    color-mix(in oklch, var(--c) calc(97.7% * var(--k)), transparent) calc(var(--r) - 2 * var(--s)),
+    color-mix(in oklch, var(--c) calc(93.3% * var(--k)), transparent) calc(var(--r) - 1.5 * var(--s)),
+    color-mix(in oklch, var(--c) calc(84.1% * var(--k)), transparent) calc(var(--r) - 1 * var(--s)),
+    color-mix(in oklch, var(--c) calc(69.1% * var(--k)), transparent) calc(var(--r) - 0.5 * var(--s)),
+    color-mix(in oklch, var(--c) calc(50% * var(--k)), transparent) var(--r),
+    color-mix(in oklch, var(--c) calc(30.9% * var(--k)), transparent) calc(var(--r) + 0.5 * var(--s)),
+    color-mix(in oklch, var(--c) calc(15.9% * var(--k)), transparent) calc(var(--r) + 1 * var(--s)),
+    color-mix(in oklch, var(--c) calc(6.7% * var(--k)), transparent) calc(var(--r) + 1.5 * var(--s)),
+    color-mix(in oklch, var(--c) calc(2.3% * var(--k)), transparent) calc(var(--r) + 2 * var(--s)),
+    transparent calc(var(--r) + 2.5 * var(--s))
+  );
 }
+/* Offsets are the disc's own, pulled out by the 2.5 * --s gradient margin. */
 .blob-1 {
-  width: 60vw;
-  height: 60vw;
-  left: -18vw;
-  top: -22vw;
-  background: var(--nebula-1);
-  animation-duration: 42s;
+  --d: 60vw;
+  --c: var(--nebula-1);
+  left: calc(-18vw - 2.5 * var(--s));
+  top: calc(-22vw - 2.5 * var(--s));
 }
 .blob-2 {
-  width: 55vw;
-  height: 55vw;
-  right: -20vw;
-  bottom: -25vw;
-  background: var(--nebula-2);
-  animation-duration: 51s;
-  animation-delay: -12s;
+  --d: 55vw;
+  --c: var(--nebula-2);
+  right: calc(-20vw - 2.5 * var(--s));
+  bottom: calc(-25vw - 2.5 * var(--s));
 }
 .blob-3 {
-  width: 32vw;
-  height: 32vw;
-  right: 12vw;
-  top: -12vw;
-  background: var(--nebula-3);
-  animation-duration: 47s;
-  animation-delay: -25s;
+  --d: 32vw;
+  --c: var(--nebula-3);
+  /* Small next to its blur, so a real blur never reaches full strength at the centre. */
+  --k: 0.85;
+  right: calc(12vw - 2.5 * var(--s));
+  top: calc(-12vw - 2.5 * var(--s));
 }
-@keyframes drift {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(6vw, 4vw, 0) scale(1.08);
-  }
-  100% {
-    transform: translate3d(-4vw, 7vw, 0) scale(0.96);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .blob {
-    animation: none;
-  }
-}
-
 /* Scrollbars, quiet */
 * {
   scrollbar-width: thin;
