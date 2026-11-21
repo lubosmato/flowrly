@@ -4,6 +4,10 @@ Desktop app for a freelancer to record time worked for clients and turn that tim
 
 ## Language
 
+**Onboarding**:
+The first-run wizard. It creates the first Client and asks, step by step, whether to use Fakturoid, Activity Tracking and AI. Nothing is tracked until it is finished.
+_Avoid_: Setup assistant, tutorial, tour
+
 **Client**:
 A company the freelancer works for and bills. Every time entry belongs to exactly one Client.
 _Avoid_: Company, customer, subject (Fakturoid's word), account

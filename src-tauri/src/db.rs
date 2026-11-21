@@ -79,6 +79,17 @@ const MIGRATIONS: &[&str] = &[
     "#,
     // 0004: invoice number per entry (NULL = not invoiced, '' = invoiced, number unknown)
     r#"ALTER TABLE time_entries ADD COLUMN invoice_number TEXT;"#,
+    // 0005: installs that already have a client predate onboarding; mark them as onboarded
+    // so the wizard only greets genuinely new users.
+    r#"
+    INSERT INTO settings (key, value)
+    SELECT 'app', '{"onboarding_completed":true}'
+    WHERE EXISTS (SELECT 1 FROM clients)
+    ON CONFLICT(key) DO UPDATE SET value = CASE
+        WHEN json_valid(value) THEN json_set(value, '$.onboarding_completed', json('true'))
+        ELSE excluded.value
+    END;
+    "#,
 ];
 
 pub fn migrations() -> Migrations<'static> {
@@ -117,5 +128,43 @@ mod tests {
     #[test]
     fn migrations_are_valid() {
         assert!(migrations().validate().is_ok());
+    }
+
+    fn migrated_to(version: usize) -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrations().to_version(&mut conn, version).unwrap();
+        conn
+    }
+
+    #[test]
+    fn fresh_install_needs_onboarding() {
+        let mut conn = migrated_to(4);
+        migrations().to_latest(&mut conn).unwrap();
+        assert!(!crate::repo::load_settings(&conn).unwrap().onboarding_completed);
+    }
+
+    #[test]
+    fn install_with_clients_skips_onboarding() {
+        // No settings row yet.
+        let mut conn = migrated_to(4);
+        conn.execute("INSERT INTO clients (name) VALUES ('Acme')", []).unwrap();
+        migrations().to_latest(&mut conn).unwrap();
+        let s = crate::repo::load_settings(&conn).unwrap();
+        assert!(s.onboarding_completed);
+        assert!(s.tracking_enabled, "other settings keep their defaults");
+
+        // Existing settings row: the flag is added, the rest is untouched.
+        let mut conn = migrated_to(4);
+        conn.execute("INSERT INTO clients (name) VALUES ('Acme')", []).unwrap();
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('app', '{\"tracking_enabled\":false,\"ai_model\":\"m\"}')",
+            [],
+        )
+        .unwrap();
+        migrations().to_latest(&mut conn).unwrap();
+        let s = crate::repo::load_settings(&conn).unwrap();
+        assert!(s.onboarding_completed);
+        assert!(!s.tracking_enabled);
+        assert_eq!(s.ai_model, "m");
     }
 }

@@ -33,6 +33,11 @@ mod ax {
         unsafe { AXIsProcessTrustedWithOptions(opts.as_concrete_TypeRef()) }
     }
 
+    /// Whether Accessibility access is granted, without prompting.
+    pub fn is_trusted() -> bool {
+        unsafe { AXIsProcessTrusted() }
+    }
+
     pub fn focused_window_title(pid: i32) -> Option<String> {
         unsafe {
             let app = AXUIElementCreateApplication(pid);
@@ -65,9 +70,23 @@ mod ax {
         true
     }
 
+    pub fn is_trusted() -> bool {
+        true
+    }
+
     pub fn focused_window_title(_pid: i32) -> Option<String> {
         None
     }
+}
+
+/// Whether window titles can be read (macOS Accessibility permission), without prompting.
+pub fn permission_granted() -> bool {
+    ax::is_trusted()
+}
+
+/// Show the macOS Accessibility prompt if access is not granted yet.
+pub fn request_permission() -> bool {
+    ax::request_permission()
 }
 
 pub const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -81,6 +100,16 @@ pub struct TrackerConfig {
     pub enabled: bool,
     pub idle_threshold_secs: u64,
     pub ignored_apps: Vec<String>,
+}
+
+impl TrackerConfig {
+    pub fn from_settings(s: &crate::models::Settings) -> Self {
+        Self {
+            enabled: s.tracking_active(),
+            idle_threshold_secs: s.idle_threshold_seconds.max(30) as u64,
+            ignored_apps: s.ignored_apps.clone(),
+        }
+    }
 }
 
 pub type SharedTrackerConfig = Arc<RwLock<TrackerConfig>>;
@@ -138,9 +167,9 @@ pub fn spawn(db_path: PathBuf, cfg: SharedTrackerConfig) {
                     return;
                 }
             };
-            if !ax::request_permission() {
-                log::warn!("tracker: Accessibility permission not granted; window titles may be empty");
-            }
+            // The Accessibility prompt waits until tracking is actually on, so a new user
+            // is not asked for a permission before onboarding has explained it.
+            let mut asked_permission = false;
             let mut last: Option<Observation> = None;
             let mut last_write = Instant::now();
             loop {
@@ -152,6 +181,12 @@ pub fn spawn(db_path: PathBuf, cfg: SharedTrackerConfig) {
                 if !snapshot.enabled {
                     last = None;
                     continue;
+                }
+                if !asked_permission {
+                    asked_permission = true;
+                    if !ax::request_permission() {
+                        log::warn!("tracker: Accessibility permission not granted; window titles may be empty");
+                    }
                 }
                 let Some(obs) = observe(&snapshot) else {
                     continue;

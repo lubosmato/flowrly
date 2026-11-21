@@ -20,6 +20,10 @@ export const commands = {
 	saveSettings: (settings: Settings) => __TAURI_INVOKE<Settings>("save_settings", { settings }),
 	setSecret: (key: SecretKey, value: string) => __TAURI_INVOKE<null>("set_secret", { key, value }),
 	hasSecret: (key: SecretKey) => __TAURI_INVOKE<boolean>("has_secret", { key }),
+	/**  Whether macOS lets the tracker read window titles. Never prompts. */
+	accessibilityGranted: () => __TAURI_INVOKE<boolean>("accessibility_granted"),
+	/**  Shows the macOS Accessibility prompt when access is missing; returns the current state. */
+	requestAccessibility: () => __TAURI_INVOKE<boolean>("request_accessibility"),
 	openAccessibilitySettings: () => __TAURI_INVOKE<null>("open_accessibility_settings"),
 	openUrl: (url: string) => __TAURI_INVOKE<null>("open_url", { url }),
 	getDayActivity: (day: string) => __TAURI_INVOKE<DayActivity>("get_day_activity", { day }),
@@ -199,6 +203,11 @@ export type Settings = {
 	ignored_apps: string[],
 	backup_dir: string,
 	launch_at_login: boolean,
+	/**
+	 *  False until the first-run wizard is finished. Until then nothing is tracked and
+	 *  the app does not register itself to launch at login.
+	 */
+	onboarding_completed: boolean,
 };
 
 export type Suggestion = {

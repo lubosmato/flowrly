@@ -4,7 +4,6 @@ import { listen } from "@tauri-apps/api/event";
 import { AnimatePresence, motion } from "motion/react";
 import { CalendarDays, ListChecks, Sparkles, Users, Settings2 } from "lucide-react";
 import { cn } from "cn";
-import { Nebula } from "@/components/nebula";
 import mark from "@/assets/mark.png";
 
 const NAV = [
@@ -65,7 +64,6 @@ export function AppShell() {
   useMenuActions();
   return (
     <div className="flex h-screen w-screen">
-      <Nebula />
       <aside data-tauri-drag-region className="flex w-[88px] shrink-0 flex-col items-center pt-12 pb-6">
         <img src={mark} alt="Flowrly" className="mb-8 size-11 select-none drop-shadow-sm" draggable={false} />
         <nav className="flex flex-col items-center gap-1.5">

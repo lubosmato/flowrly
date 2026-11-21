@@ -172,6 +172,16 @@ pub struct Settings {
     pub ignored_apps: Vec<String>,
     pub backup_dir: String,
     pub launch_at_login: bool,
+    /// False until the first-run wizard is finished. Until then nothing is tracked and
+    /// the app does not register itself to launch at login.
+    pub onboarding_completed: bool,
+}
+
+impl Settings {
+    /// Tracking needs consent: it stays off until the user has been through onboarding.
+    pub fn tracking_active(&self) -> bool {
+        self.tracking_enabled && self.onboarding_completed
+    }
 }
 
 impl Default for Settings {
@@ -188,6 +198,7 @@ impl Default for Settings {
             ignored_apps: vec!["1Password".into(), "Keychain Access".into(), "Messages".into()],
             backup_dir: String::new(),
             launch_at_login: true,
+            onboarding_completed: false,
         }
     }
 }

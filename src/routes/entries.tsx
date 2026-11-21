@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dot, Empty, PageHeader, Stat } from "@/components/bits";
 import { EntryForm } from "@/components/entry-form";
+import { InvoiceSummary } from "@/components/invoice-summary";
 import { DateRangePicker } from "@/components/date-picker";
 import { useConfirm } from "@/components/confirm";
 import { ENTRY_KEYS, errorMessage, useClients, useDeleteEntry, useEntries, useSetEntryInvoice } from "@/lib/api";
@@ -356,22 +357,7 @@ function InvoiceDialog({
               </Tabs>
             </div>
           )}
-          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 py-2 text-sm">
-            <dt className="text-muted-foreground">Line</dt>
-            <dd>{preview.line_name}</dd>
-            <dt className="text-muted-foreground">Entries</dt>
-            <dd className="tabular">
-              {preview.entry_count} · {fmtMinutes(preview.total_minutes)}
-            </dd>
-            <dt className="text-muted-foreground">Quantity</dt>
-            <dd className="font-display tabular text-2xl">{preview.hours} h</dd>
-            <dt className="text-muted-foreground">Rate</dt>
-            <dd className="tabular">
-              {money(preview.hourly_rate, preview.currency)} / h · VAT {preview.vat_rate}%
-            </dd>
-            <dt className="text-muted-foreground">Subtotal</dt>
-            <dd className="font-display tabular text-xl">{money(preview.subtotal, preview.currency)}</dd>
-          </dl>
+          <InvoiceSummary preview={preview} />
           </>
         ) : (
           !error && (

@@ -15,6 +15,16 @@ pub const BASE_URL: &str = "https://app.fakturoid.cz/api/v3";
 #[derive(Default)]
 pub struct TokenCache(Mutex<Option<(String, Instant)>>);
 
+impl TokenCache {
+    /// Forget the cached token, e.g. after the credentials changed. Skipped when a
+    /// request holds the lock right now; that request is using the old credentials anyway.
+    pub fn clear(&self) {
+        if let Ok(mut guard) = self.0.try_lock() {
+            *guard = None;
+        }
+    }
+}
+
 pub struct Credentials {
     pub client_id: String,
     pub client_secret: String,

@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Check, Loader2, RefreshCw, ShieldCheck, DatabaseBackup, FolderOpen, RotateCcw } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Check, Loader2, RefreshCw, ShieldCheck, DatabaseBackup, FolderOpen, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { commands, type AiProvider, type SecretKey, type Settings } from "@/bindings";
+import { commands, type SecretKey, type Settings } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,15 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Field, PageHeader } from "@/components/bits";
 import { useConfirm } from "@/components/confirm";
+import { ONBOARDING_PATH } from "@/components/root";
+import { PROVIDERS } from "@/lib/ai-providers";
 import { errorMessage, keys, useAppPaths, useBackupNow, useBackups, useSaveSettings, useSettings } from "@/lib/api";
-
-const PROVIDERS: { value: AiProvider; label: string; model: string; needsKey: boolean }[] = [
-  { value: "anthropic", label: "Anthropic", model: "claude-haiku-4-5-20251001", needsKey: true },
-  { value: "openai", label: "OpenAI", model: "gpt-5-mini", needsKey: true },
-  { value: "gemini", label: "Google Gemini", model: "gemini-2.5-flash", needsKey: true },
-  { value: "openrouter", label: "OpenRouter", model: "anthropic/claude-haiku-4.5", needsKey: true },
-  { value: "ollama", label: "Ollama (local)", model: "qwen3:8b", needsKey: false },
-];
 
 export function SettingsPage() {
   const { data: settings } = useSettings();
@@ -45,11 +40,15 @@ function SettingsForm({ initial }: { initial: Settings }) {
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS((p) => ({ ...p, [k]: v }));
   const dirty = JSON.stringify(s) !== JSON.stringify(initial);
   const save = useSaveSettings({ onSuccess: () => toast.success("Settings saved") });
+  const navigate = useNavigate();
   const provider = PROVIDERS.find((p) => p.value === s.ai_provider)!;
 
   return (
     <div className="flex h-full flex-col">
       <PageHeader title="Settings">
+        <Button variant="ghost" size="sm" onClick={() => navigate({ to: ONBOARDING_PATH })} title="Walk through the setup wizard again">
+          <Sparkles /> Replay the intro
+        </Button>
         <Button size="sm" onClick={() => save.mutate(s)} disabled={!dirty || save.isPending}>
           {save.isPending ? <Loader2 className="animate-spin" /> : <Check />}
           Save changes

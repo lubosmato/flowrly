@@ -10,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CLIENT_COLORS, Empty, Field, PageHeader } from "@/components/bits";
+import { ClientCard } from "@/components/client-card";
 import { useConfirm } from "@/components/confirm";
 import { errorMessage, keys, useClients, useCreateClient, useDeleteClient, useUpdateClient } from "@/lib/api";
-import { money } from "@/lib/format";
 
-const CURRENCIES = ["CZK", "EUR", "USD", "GBP", "PLN", "CHF"];
+export const CURRENCIES = ["CZK", "EUR", "USD", "GBP", "PLN", "CHF"];
 
-const blank = (): ClientInput => ({
+export const blankClient = (): ClientInput => ({
   name: "",
   color: CLIENT_COLORS[0],
   hourly_rate: 0,
@@ -56,31 +56,7 @@ export function ClientsPage() {
           ) : (
             <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
               {clients.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setEditing(c)}
-                  className={cn(
-                    "glass flex flex-col gap-4 rounded-3xl p-6 text-left transition-all hover:shadow-md",
-                    c.archived && "opacity-50",
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="size-3 rounded-full" style={{ background: c.color }} />
-                    <span className="truncate text-lg font-medium">{c.name}</span>
-                    {c.archived && <span className="ml-auto text-[11px] tracking-wide text-muted-foreground uppercase">Archived</span>}
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-display tabular text-3xl">{money(c.hourly_rate, c.currency)}</span>
-                    <span className="text-xs text-muted-foreground">/ h · VAT {c.vat_rate}%</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Pensum {c.pensum_percent}% · {c.workday_hours ?? 8}h workday
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {c.fakturoid_subject_id ? `Subject #${c.fakturoid_subject_id}` : "No Fakturoid subject"}
-                    {c.fakturoid_generator_id ? ` · Generator #${c.fakturoid_generator_id}` : ""}
-                  </p>
-                </button>
+                <ClientCard key={c.id} client={c} onClick={() => setEditing(c)} />
               ))}
             </div>
           )}
@@ -118,7 +94,7 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
           fakturoid_generator_id: client.fakturoid_generator_id,
           archived: client.archived,
         }
-      : blank(),
+      : blankClient(),
   );
   const set = <K extends keyof ClientInput>(k: K, v: ClientInput[K]) => setForm((f) => ({ ...f, [k]: v }));
 

@@ -40,6 +40,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::save_settings,
             commands::set_secret,
             commands::has_secret,
+            commands::accessibility_granted,
+            commands::request_accessibility,
             commands::open_accessibility_settings,
             commands::open_url,
             commands::get_day_activity,
@@ -110,11 +112,7 @@ pub fn run() {
             let conn = db::open(&db_path)?;
             let settings = repo::load_settings(&conn)?;
 
-            let tracker_cfg = Arc::new(RwLock::new(TrackerConfig {
-                enabled: settings.tracking_enabled,
-                idle_threshold_secs: settings.idle_threshold_seconds.max(30) as u64,
-                ignored_apps: settings.ignored_apps.clone(),
-            }));
+            let tracker_cfg = Arc::new(RwLock::new(TrackerConfig::from_settings(&settings)));
             tracker::spawn(db_path.clone(), tracker_cfg.clone());
 
             let state = AppState {

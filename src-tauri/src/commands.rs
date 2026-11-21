@@ -105,12 +105,10 @@ pub fn get_settings(state: State<'_, AppState>) -> AppResult<Settings> {
 
 pub fn apply_settings(app: &AppHandle, state: &AppState, s: &Settings) {
     if let Ok(mut cfg) = state.tracker_cfg.write() {
-        cfg.enabled = s.tracking_enabled;
-        cfg.idle_threshold_secs = s.idle_threshold_seconds.max(30) as u64;
-        cfg.ignored_apps = s.ignored_apps.clone();
+        *cfg = crate::tracker::TrackerConfig::from_settings(s);
     }
     let autostart = app.autolaunch();
-    let result = if s.launch_at_login { autostart.enable() } else { autostart.disable() };
+    let result = if s.launch_at_login && s.onboarding_completed { autostart.enable() } else { autostart.disable() };
     if let Err(e) = result {
         log::warn!("autostart: {e}");
     }
@@ -129,19 +127,39 @@ pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Setti
     s.idle_threshold_seconds = s.idle_threshold_seconds.clamp(30, 3600);
     repo::save_settings(&*state.conn()?, &s)?;
     apply_settings(&app, &state, &s);
+    // The client ID may have changed; a cached token would keep the old identity alive.
+    state.fakturoid_tokens.clear();
     Ok(s)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn set_secret(key: SecretKey, value: String) -> AppResult<()> {
-    secrets::set(key, value.trim())
+pub fn set_secret(state: State<'_, AppState>, key: SecretKey, value: String) -> AppResult<()> {
+    secrets::set(key, value.trim())?;
+    if key == SecretKey::FakturoidClientSecret {
+        state.fakturoid_tokens.clear();
+    }
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn has_secret(key: SecretKey) -> AppResult<bool> {
     Ok(secrets::get(key)?.map(|v| !v.is_empty()).unwrap_or(false))
+}
+
+/// Whether macOS lets the tracker read window titles. Never prompts.
+#[tauri::command]
+#[specta::specta]
+pub fn accessibility_granted() -> bool {
+    crate::tracker::permission_granted()
+}
+
+/// Shows the macOS Accessibility prompt when access is missing; returns the current state.
+#[tauri::command]
+#[specta::specta]
+pub fn request_accessibility() -> bool {
+    crate::tracker::request_permission()
 }
 
 #[tauri::command]
