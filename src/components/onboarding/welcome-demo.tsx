@@ -1,13 +1,13 @@
 import { useMemo } from "react";
-import { eachDayOfInterval, endOfMonth, endOfWeek, isSameMonth, isWeekend, startOfMonth, startOfWeek } from "date-fns";
+import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, isWeekend, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "motion/react";
 import { FileCheck } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 import { cn } from "cn";
 import { CLIENT_COLORS, Dot } from "@/components/bits";
 import { fmtHours, money, monthLabel } from "@/lib/format";
 import { Num, Stage, usePhases } from "./kit";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const ACME = { name: "Acme", color: CLIENT_COLORS[0], rate: 1200 };
 const NORTHWIND = { name: "Northwind", color: CLIENT_COLORS[1] };
 /** Minutes logged for Acme on consecutive workdays, repeating. */
@@ -15,10 +15,11 @@ const ACME_MINUTES = [480, 450, 360, 510, 420, 465, 390];
 
 const FILL_STAGGER = 0.11;
 const PHASES = [3600, 1500, 3800] as const;
-const CAPTIONS = ["Log your hours per Client on a calendar", "Flowrly adds up the month", "One click turns the month into an Invoice"];
+const CAPTIONS = ["demos.welcome.captions.log", "demos.welcome.captions.addUp", "demos.welcome.captions.invoice"] as const;
 
 /** A month filling up with logged hours, then stamped as invoiced. Mirrors the Calendar screen. */
 export function WelcomeDemo() {
+  const { t } = useTranslation();
   const { phase, cycle } = usePhases(PHASES);
   const month = useMemo(() => startOfMonth(new Date()), []);
   const cells = useMemo(() => {
@@ -39,18 +40,23 @@ export function WelcomeDemo() {
   const total = acmeTotal + cells.reduce((a, c) => a + c.northwind, 0);
   const workdays = cells.filter((c) => c.order >= 0).length;
   const invoiced = phase === 2;
+  const weekdays = cells.slice(0, 7).map((c) => format(c.date, t("demos.welcome.weekdayPattern")));
 
   return (
-    <Stage caption={CAPTIONS[phase]} progress={(phase + 1) / PHASES.length}>
+    <Stage caption={t(CAPTIONS[phase])} progress={(phase + 1) / PHASES.length}>
       <div className="flex h-full flex-col">
         <header className="flex items-end justify-between pb-4">
           <div>
             <h3 className="font-display text-[30px] leading-none font-medium tracking-tight">{monthLabel(month)}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              <span className="tabular text-foreground">
-                <Num key={cycle} value={total} initial={0} ms={workdays * FILL_STAGGER * 1000 + 400} format={(v) => fmtHours(v, 1)} /> h
-              </span>{" "}
-              logged this month
+              <Trans
+                key={cycle}
+                i18nKey="demos.welcome.logged"
+                components={{
+                  total: <span className="tabular text-foreground" />,
+                  num: <Num value={total} initial={0} ms={workdays * FILL_STAGGER * 1000 + 400} format={(v) => fmtHours(v, 1)} />,
+                }}
+              />
             </p>
           </div>
           <div className="flex items-center gap-4 pb-0.5 text-xs text-muted-foreground">
@@ -63,7 +69,7 @@ export function WelcomeDemo() {
         </header>
 
         <div className="mb-1.5 grid grid-cols-7 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-          {WEEKDAYS.map((d) => (
+          {weekdays.map((d) => (
             <div key={d} className="px-2.5">
               {d}
             </div>
@@ -112,7 +118,7 @@ export function WelcomeDemo() {
                   <FileCheck className="size-4.5" />
                 </span>
                 <div className="leading-tight">
-                  <p className="text-xs text-muted-foreground">Invoice 2026-0011 · {ACME.name}</p>
+                  <p className="text-xs text-muted-foreground">{t("demos.welcome.invoice", { number: "2026-0011", client: ACME.name })}</p>
                   <p className="font-display tabular text-xl">
                     {fmtHours(acmeTotal)} h · {money((acmeTotal / 60) * ACME.rate)}
                   </p>

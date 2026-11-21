@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Loader2, RefreshCw, Archive, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { cn } from "cn";
 import { commands, type Client, type ClientInput } from "@/bindings";
 import { Button } from "@/components/ui/button";
@@ -24,32 +26,33 @@ export const blankClient = (): ClientInput => ({
   pensum_percent: 100,
   workday_hours: 8,
   vat_rate: 21,
-  line_description: "Software development {period}",
+  line_description: i18n.t("clients.defaultLineDescription"),
   fakturoid_subject_id: null,
   fakturoid_generator_id: null,
   archived: false,
 });
 
 export function ClientsPage() {
+  const { t } = useTranslation();
   const { data: clients = [] } = useClients();
   const [editing, setEditing] = useState<Client | "new" | null>(null);
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Clients" subtitle="Who you work for, what they pay, and where the invoice goes.">
+      <PageHeader title={t("clients.title")} subtitle={t("clients.subtitle")}>
         <Button size="sm" onClick={() => setEditing("new")}>
-          <Plus /> New client
+          <Plus /> {t("clients.newClient")}
         </Button>
       </PageHeader>
       <ScrollArea className="min-h-0 flex-1">
         <div className="pl-7 pr-10 pb-8">
           {clients.length === 0 ? (
             <Empty
-              title="No clients yet"
-              hint="Add the company you bill. You'll need it before logging time."
+              title={t("clients.emptyTitle")}
+              hint={t("clients.emptyHint")}
               action={
                 <Button onClick={() => setEditing("new")}>
-                  <Plus /> New client
+                  <Plus /> {t("clients.newClient")}
                 </Button>
               }
             />
@@ -66,8 +69,8 @@ export function ClientsPage() {
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl font-medium">{editing === "new" ? "New client" : "Edit client"}</DialogTitle>
-            <DialogDescription className="sr-only">Client details</DialogDescription>
+            <DialogTitle className="font-display text-2xl font-medium">{editing === "new" ? t("clients.newClient") : t("clients.editClient")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("clients.details")}</DialogDescription>
           </DialogHeader>
           {editing !== null && (
             <ClientForm client={editing === "new" ? undefined : editing} onDone={() => setEditing(null)} />
@@ -79,6 +82,7 @@ export function ClientsPage() {
 }
 
 function ClientForm({ client, onDone }: { client?: Client; onDone: () => void }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<ClientInput>(() =>
     client
       ? {
@@ -124,10 +128,10 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
       }}
     >
       <div className="grid grid-cols-[1fr_auto] gap-3">
-        <Field label="Name">
+        <Field label={t("clients.name")}>
           <Input autoFocus value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Acme s.r.o." />
         </Field>
-        <Field label="Colour">
+        <Field label={t("clients.colour")}>
           <div className="flex h-8 items-center gap-1.5">
             {CLIENT_COLORS.map((c) => (
               <button
@@ -144,10 +148,10 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
       </div>
 
       <div className="grid grid-cols-[1fr_auto_auto] gap-3">
-        <Field label="Hourly rate">
+        <Field label={t("clients.hourlyRate")}>
           <Input type="number" min={0} step={1} value={form.hourly_rate ?? 0} onChange={(e) => set("hourly_rate", Number(e.target.value))} className="font-display text-lg" />
         </Field>
-        <Field label="Currency">
+        <Field label={t("clients.currency")}>
           <Select value={form.currency} onValueChange={(v) => set("currency", v)}>
             <SelectTrigger className="w-24">
               <SelectValue />
@@ -161,20 +165,20 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
             </SelectContent>
           </Select>
         </Field>
-        <Field label="VAT %" className="w-20">
+        <Field label={t("clients.vat")} className="w-20">
           <Input type="number" min={0} max={100} value={form.vat_rate} onChange={(e) => set("vat_rate", Number(e.target.value))} />
         </Field>
       </div>
 
-      <Field label="Invoice line" hint="{period} becomes e.g. 09/2026">
+      <Field label={t("clients.invoiceLine")} hint={t("clients.invoiceLineHint")}>
         <Input value={form.line_description} onChange={(e) => set("line_description", e.target.value)} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Pensum %" hint="Share of a full workload you owe this client">
+        <Field label={t("clients.pensum")} hint={t("clients.pensumHint")}>
           <Input type="number" min={0} max={100} step={5} value={form.pensum_percent} onChange={(e) => set("pensum_percent", Number(e.target.value))} />
         </Field>
-        <Field label="Workday hours" hint="Hours in a full working day, e.g. 8.5">
+        <Field label={t("clients.workdayHours")} hint={t("clients.workdayHoursHint")}>
           <Input type="number" min={0.5} max={24} step={0.5} value={form.workday_hours ?? 8} onChange={(e) => set("workday_hours", Number(e.target.value))} />
         </Field>
       </div>
@@ -184,16 +188,16 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
           <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Fakturoid</span>
           <Button type="button" variant="ghost" size="xs" onClick={() => (fxEnabled ? void subjects.refetch().then(() => generators.refetch()) : setFxEnabled(true))} disabled={fxLoading}>
             {fxLoading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-            {fxEnabled ? "Reload" : "Load from Fakturoid"}
+            {fxEnabled ? t("clients.reload") : t("clients.loadFromFakturoid")}
           </Button>
         </div>
         {fxError ? <p className="text-xs text-destructive">{errorMessage(fxError)}</p> : null}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Subject">
+          <Field label={t("clients.subject")}>
             {subjects.data ? (
               <Select value={form.fakturoid_subject_id ? String(form.fakturoid_subject_id) : ""} onValueChange={(v) => set("fakturoid_subject_id", v ? Number(v) : null)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pick subject" />
+                  <SelectValue placeholder={t("clients.pickSubject")} />
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.data.map((s) => (
@@ -204,14 +208,14 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
                 </SelectContent>
               </Select>
             ) : (
-              <Input type="number" placeholder="Subject ID" value={form.fakturoid_subject_id ?? ""} onChange={(e) => set("fakturoid_subject_id", e.target.value ? Number(e.target.value) : null)} />
+              <Input type="number" placeholder={t("clients.subjectId")} value={form.fakturoid_subject_id ?? ""} onChange={(e) => set("fakturoid_subject_id", e.target.value ? Number(e.target.value) : null)} />
             )}
           </Field>
-          <Field label="Generator (template)">
+          <Field label={t("clients.generator")}>
             {generators.data ? (
               <Select value={form.fakturoid_generator_id ? String(form.fakturoid_generator_id) : ""} onValueChange={(v) => set("fakturoid_generator_id", v ? Number(v) : null)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pick generator" />
+                  <SelectValue placeholder={t("clients.pickGenerator")} />
                 </SelectTrigger>
                 <SelectContent>
                   {generators.data.map((g) => (
@@ -222,7 +226,7 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
                 </SelectContent>
               </Select>
             ) : (
-              <Input type="number" placeholder="Generator ID" value={form.fakturoid_generator_id ?? ""} onChange={(e) => set("fakturoid_generator_id", e.target.value ? Number(e.target.value) : null)} />
+              <Input type="number" placeholder={t("clients.generatorId")} value={form.fakturoid_generator_id ?? ""} onChange={(e) => set("fakturoid_generator_id", e.target.value ? Number(e.target.value) : null)} />
             )}
           </Field>
         </div>
@@ -231,7 +235,7 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
       {client && (
         <div className="flex items-center justify-between rounded-2xl px-1">
           <label className="flex items-center gap-2 text-sm">
-            <Archive className="size-4 text-muted-foreground" /> Archived
+            <Archive className="size-4 text-muted-foreground" /> {t("clients.archived")}
             <Switch checked={form.archived} onCheckedChange={(v) => set("archived", v)} />
           </label>
           <Button
@@ -240,21 +244,21 @@ function ClientForm({ client, onDone }: { client?: Client; onDone: () => void })
             size="sm"
             className="text-destructive"
             onClick={async () => {
-              if (await confirm({ title: `Delete ${client.name}?`, description: "Only possible when the client has no time entries. Archive it instead to keep history." }))
+              if (await confirm({ title: t("clients.deleteTitle", { name: client.name }), description: t("clients.deleteDescription") }))
                 remove.mutate(client.id);
             }}
           >
-            <Trash2 /> Delete
+            <Trash2 /> {t("common.delete")}
           </Button>
         </div>
       )}
 
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" disabled={saving || !form.name.trim()}>
-          {client ? "Save" : "Create"}
+          {client ? t("common.save") : t("clients.create")}
         </Button>
       </DialogFooter>
     </form>

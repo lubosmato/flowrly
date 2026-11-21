@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { isWeekend, subDays } from "date-fns";
 import { AnimatePresence, motion } from "motion/react";
 import { CloudOff, Cpu, Send, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "cn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,15 +19,13 @@ const WINDOWS = [
   { app: "Arc", title: "Exact hours on the invoice line · Pull Request #128", minutes: 80 },
 ];
 const ACTIVE = 462;
-const SUMMARY =
-  "Reworked the invoice line to use exact hours and reviewed PR #128. Sketched the onboarding flow in Figma, then fixed failing tests ahead of the 0.1.8 release.";
 const TAGS = [
-  { tag: "coding", minutes: 250 },
-  { tag: "design", minutes: 85 },
-  { tag: "code review", minutes: 80 },
-  { tag: "communication", minutes: 47 },
-];
-const SUGGESTION = { start: "09:05", end: "17:20", description: "Exact hours on invoice line, PR #128 review, onboarding flow, release fixes" };
+  { tag: "demos.ai.tags.coding", minutes: 250 },
+  { tag: "demos.ai.tags.design", minutes: 85 },
+  { tag: "demos.ai.tags.review", minutes: 80 },
+  { tag: "demos.ai.tags.communication", minutes: 47 },
+] as const;
+const SUGGESTION = { start: "09:05", end: "17:20" };
 
 // windows, press Summarize, summary arrives, press Suggest, entry filled
 const PHASES = [2400, 1600, 4600, 1600, 4200] as const;
@@ -34,6 +33,7 @@ const TYPE_SPEED = 70;
 
 /** A tracked day turned into a Day Summary, then into a Suggestion. Mirrors the Activity screen and the entry form. */
 export function AiDemo({ provider, local }: { provider: string; local: boolean }) {
+  const { t } = useTranslation();
   const { phase } = usePhases(PHASES);
   const day = useMemo(() => {
     let d = subDays(new Date(), 1);
@@ -43,16 +43,17 @@ export function AiDemo({ provider, local }: { provider: string; local: boolean }
   const sending = phase === 1 || phase === 3;
   const summarized = phase >= 2;
   const suggested = phase === 4;
-  const summary = useTyped(SUMMARY, summarized, TYPE_SPEED);
-  const description = useTyped(SUGGESTION.description, suggested, TYPE_SPEED);
-  const summaryDone = summary.length === SUMMARY.length;
+  const summaryText = t("demos.ai.summary");
+  const summary = useTyped(summaryText, summarized, TYPE_SPEED);
+  const description = useTyped(t("demos.ai.suggestion"), suggested, TYPE_SPEED);
+  const summaryDone = summary.length === summaryText.length;
 
   const captions = [
-    "The tracker saw these windows that day",
-    local ? `Press Summarize: ${provider} reads the titles on this Mac` : `Press Summarize: only then do the titles go to ${provider}`,
-    "Back comes a Day Summary: a description and Tags",
-    "Suggest proposes a Time Entry from the same activity",
-    "You review it. Nothing is saved until you add the entry",
+    t("demos.ai.captions.windows"),
+    local ? t("demos.ai.captions.pressLocal", { provider }) : t("demos.ai.captions.pressRemote", { provider }),
+    t("demos.ai.captions.summary"),
+    t("demos.ai.captions.suggest"),
+    t("demos.ai.captions.review"),
   ];
 
   return (
@@ -74,11 +75,11 @@ export function AiDemo({ provider, local }: { provider: string; local: boolean }
               {sending ? (
                 <>
                   {local ? <Cpu className="size-3.5 text-primary" /> : <Send className="size-3.5 text-primary" />}
-                  {local ? `Asking ${provider} on this Mac` : `Sending app names and window titles to ${provider}`}
+                  {local ? t("demos.ai.askingLocal", { provider }) : t("demos.ai.sending", { provider })}
                 </>
               ) : (
                 <>
-                  <CloudOff className="size-3.5" /> Nothing is being sent
+                  <CloudOff className="size-3.5" /> {t("demos.ai.nothingSent")}
                 </>
               )}
             </motion.span>
@@ -104,15 +105,15 @@ export function AiDemo({ provider, local }: { provider: string; local: boolean }
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {summaryDone &&
-                      TAGS.map((t, i) => (
+                      TAGS.map((tag, i) => (
                         <motion.span
-                          key={t.tag}
+                          key={tag.tag}
                           initial={{ opacity: 0, scale: 0.6, y: 6 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           transition={{ delay: i * 0.1, type: "spring", stiffness: 420, damping: 20 }}
                         >
                           <Badge variant="secondary" className="tabular">
-                            {t.tag} · {fmtMinutes(t.minutes)}
+                            {t(tag.tag)} · {fmtMinutes(tag.minutes)}
                           </Badge>
                         </motion.span>
                       ))}
@@ -134,7 +135,7 @@ export function AiDemo({ provider, local }: { provider: string; local: boolean }
                   <Press active={phase === 1} className="self-start">
                     <Button variant="outline" size="sm" tabIndex={-1}>
                       <Sparkles className="text-primary" />
-                      Summarize with AI
+                      {t("demos.ai.summarize")}
                     </Button>
                   </Press>
                 </motion.div>
@@ -146,13 +147,13 @@ export function AiDemo({ provider, local }: { provider: string; local: boolean }
         {/* Suggestion: the log-time form */}
         <Slab className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Start">
+            <Field label={t("common.start")}>
               <Input readOnly tabIndex={-1} placeholder="9:00" value={suggested ? SUGGESTION.start : ""} className="font-display tabular text-lg md:text-lg" />
             </Field>
-            <Field label="End">
+            <Field label={t("common.end")}>
               <Input readOnly tabIndex={-1} placeholder="17:30" value={suggested ? SUGGESTION.end : ""} className="font-display tabular text-lg md:text-lg" />
             </Field>
-            <Field label="Duration">
+            <Field label={t("common.duration")}>
               <span className="flex h-8 items-center">
                 <AnimatePresence>
                   {suggested && (
@@ -170,18 +171,18 @@ export function AiDemo({ provider, local }: { provider: string; local: boolean }
               </span>
             </Field>
           </div>
-          <Field label="Description">
-            <Textarea readOnly tabIndex={-1} rows={2} placeholder="What did you work on?" value={description} className="min-h-12 resize-none" />
+          <Field label={t("common.description")}>
+            <Textarea readOnly tabIndex={-1} rows={2} placeholder={t("demos.ai.descriptionPlaceholder")} value={description} className="min-h-12 resize-none" />
           </Field>
           <div className="mt-auto flex items-center justify-between">
             <Press active={phase === 3}>
               <Button variant="ghost" size="sm" tabIndex={-1}>
                 <Sparkles className="text-primary" />
-                Suggest
+                {t("demos.ai.suggest")}
               </Button>
             </Press>
             <Button size="sm" tabIndex={-1}>
-              Add entry
+              {t("demos.ai.addEntry")}
             </Button>
           </div>
         </Slab>

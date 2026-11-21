@@ -6,6 +6,7 @@ mod db;
 mod error;
 mod export;
 mod fakturoid;
+mod i18n;
 mod invoice;
 mod models;
 mod repo;
@@ -15,6 +16,7 @@ mod tracker;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
+use rust_i18n::t;
 use tauri::menu::{Menu, MenuBuilder, MenuItem, MenuItemBuilder, SubmenuBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
@@ -22,6 +24,8 @@ use tauri_specta::{collect_commands, Builder, ErrorHandlingMode};
 
 use commands::AppState;
 use tracker::TrackerConfig;
+
+rust_i18n::i18n!("locales", fallback = "en");
 
 fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new()
@@ -62,6 +66,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::restore_backup,
             commands::app_paths,
             commands::show_main_window,
+            commands::system_language,
         ])
         .error_handling(ErrorHandlingMode::Throw)
 }
@@ -97,7 +102,6 @@ pub fn run() {
         })
         .setup(move |app| {
             builder.mount_events(app);
-            app.set_menu(build_menu(app.handle())?)?;
 
             let app_data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data_dir)?;
@@ -128,6 +132,7 @@ pub fn run() {
             };
             commands::apply_settings(app.handle(), &state, &settings);
             app.manage(state);
+            app.set_menu(build_menu(app.handle())?)?;
 
             // Backups: on launch, then hourly check for a 24h-old snapshot.
             let handle = app.handle().clone();
@@ -139,11 +144,8 @@ pub fn run() {
             });
 
             // Tray
-            let open = MenuItem::with_id(app, "open", "Open Flowrly", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit Flowrly", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &quit])?;
             let mut tray = TrayIconBuilder::with_id("main")
-                .menu(&menu)
+                .menu(&build_tray_menu(app.handle())?)
                 .show_menu_on_left_click(false)
                 .tooltip("Flowrly")
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -212,41 +214,69 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let item = |id: &str, label: &str, accel: &str| MenuItemBuilder::with_id(id, label).accelerator(accel).build(app);
 
     let app_menu = SubmenuBuilder::new(app, "Flowrly")
-        .about(None)
+        .about_with_text(t!("menu.about"), None)
         .separator()
-        .item(&item("nav:/settings", "Settings…", "Cmd+,")?)
+        .item(&item("nav:/settings", &t!("menu.settings_ellipsis"), "Cmd+,")?)
         .separator()
-        .services()
+        .services_with_text(t!("menu.services"))
         .separator()
-        .hide()
-        .hide_others()
-        .show_all()
+        .hide_with_text(t!("menu.hide"))
+        .hide_others_with_text(t!("menu.hide_others"))
+        .show_all_with_text(t!("menu.show_all"))
         .separator()
-        .quit()
+        .quit_with_text(t!("menu.quit"))
         .build()?;
-    let file = SubmenuBuilder::new(app, "File").close_window().build()?;
-    let edit = SubmenuBuilder::new(app, "Edit")
-        .undo()
-        .redo()
+    let file = SubmenuBuilder::new(app, t!("menu.file")).close_window_with_text(t!("menu.close_window")).build()?;
+    let edit = SubmenuBuilder::new(app, t!("menu.edit"))
+        .undo_with_text(t!("menu.undo"))
+        .redo_with_text(t!("menu.redo"))
         .separator()
-        .cut()
-        .copy()
-        .paste()
-        .select_all()
+        .cut_with_text(t!("menu.cut"))
+        .copy_with_text(t!("menu.copy"))
+        .paste_with_text(t!("menu.paste"))
+        .select_all_with_text(t!("menu.select_all"))
         .build()?;
-    let view = SubmenuBuilder::new(app, "View").fullscreen().build()?;
-    let go = SubmenuBuilder::new(app, "Go")
-        .item(&item("new-entry", "Log Time", "Cmd+N")?)
+    let view = SubmenuBuilder::new(app, t!("menu.view")).fullscreen_with_text(t!("menu.fullscreen")).build()?;
+    let go = SubmenuBuilder::new(app, t!("menu.go"))
+        .item(&item("new-entry", &t!("menu.log_time"), "Cmd+N")?)
         .separator()
-        .item(&item("nav:/", "Calendar", "Cmd+1")?)
-        .item(&item("nav:/entries", "Entries", "Cmd+2")?)
-        .item(&item("nav:/dashboard", "Activity", "Cmd+3")?)
-        .item(&item("nav:/clients", "Clients", "Cmd+4")?)
-        .item(&item("nav:/settings", "Settings", "Cmd+5")?)
+        .item(&item("nav:/", &t!("menu.calendar"), "Cmd+1")?)
+        .item(&item("nav:/entries", &t!("menu.entries"), "Cmd+2")?)
+        .item(&item("nav:/dashboard", &t!("menu.activity"), "Cmd+3")?)
+        .item(&item("nav:/clients", &t!("menu.clients"), "Cmd+4")?)
+        .item(&item("nav:/settings", &t!("menu.settings"), "Cmd+5")?)
         .build()?;
-    let window = SubmenuBuilder::new(app, "Window").minimize().maximize().separator().close_window().build()?;
+    let window = SubmenuBuilder::new(app, t!("menu.window"))
+        .minimize_with_text(t!("menu.minimize"))
+        .maximize_with_text(t!("menu.maximize"))
+        .separator()
+        .close_window_with_text(t!("menu.close_window"))
+        .build()?;
 
     MenuBuilder::new(app).items(&[&app_menu, &file, &edit, &view, &go, &window]).build()
+}
+
+fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
+    let open = MenuItem::with_id(app, "open", t!("tray.open"), true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", t!("tray.quit"), true, None::<&str>)?;
+    Menu::with_items(app, &[&open, &quit])
+}
+
+/// Rebuilds the app and tray menus in the current language. Before setup has
+/// created them there is nothing to replace; setup builds them itself.
+pub(crate) fn refresh_menus(app: &AppHandle) {
+    let result = (|| -> tauri::Result<()> {
+        if app.menu().is_some() {
+            app.set_menu(build_menu(app)?)?;
+        }
+        if let Some(tray) = app.tray_by_id("main") {
+            tray.set_menu(Some(build_tray_menu(app)?))?;
+        }
+        Ok(())
+    })();
+    if let Err(e) = result {
+        log::warn!("menu refresh: {e}");
+    }
 }
 
 fn show_main(app: &tauri::AppHandle) {

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [opts, setOpts] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((ok: boolean) => void) | null>(null);
 
@@ -51,7 +53,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             {opts?.description && <AlertDialogDescription>{opts.description}</AlertDialogDescription>}
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => settle(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => settle(false)}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => settle(true)}
               className={
@@ -60,7 +62,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   : undefined
               }
             >
-              {opts?.action ?? "Delete"}
+              {opts?.action ?? t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

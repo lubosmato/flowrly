@@ -50,6 +50,11 @@ export const commands = {
 	restoreBackup: (path: string) => __TAURI_INVOKE<null>("restore_backup", { path }),
 	appPaths: () => __TAURI_INVOKE<string[]>("app_paths"),
 	showMainWindow: () => __TAURI_INVOKE<null>("show_main_window"),
+	/**
+	 *  OS language resolved to one the app ships ("en", "de" or "cs"); what
+	 *  `Settings.language = ""` means.
+	 */
+	systemLanguage: () => __TAURI_INVOKE<string>("system_language"),
 };
 
 /* Types */
@@ -208,6 +213,13 @@ export type Settings = {
 	 *  the app does not register itself to launch at login.
 	 */
 	onboarding_completed: boolean,
+	/**  UI language: "en", "de" or "cs", or "" to follow the OS (see `i18n::resolve`). */
+	language: string,
+	/**
+	 *  Language the AI writes day summaries and suggestions in: "en", "de" or "cs",
+	 *  or "" to use the UI language. Lets the UI be Czech while invoices stay English.
+	 */
+	ai_language: string,
 };
 
 export type Suggestion = {

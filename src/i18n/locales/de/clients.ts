@@ -1,0 +1,37 @@
+import type en from "../en/clients";
+import type { Translation } from "../types";
+
+export default {
+  /** Starting invoice line text for a new client; {period} is filled in by Rust. */
+  defaultLineDescription: "Softwareentwicklung {period}",
+  title: "Kunden",
+  subtitle: "Für wen du arbeitest, was sie zahlen und wohin die Rechnung geht.",
+  newClient: "Neuer Kunde",
+  emptyTitle: "Noch keine Kunden",
+  emptyHint: "Füge die Firma hinzu, der du Rechnungen stellst. Du brauchst sie, bevor du Zeit erfasst.",
+  editClient: "Kunde bearbeiten",
+  details: "Kundendaten",
+  name: "Name",
+  colour: "Farbe",
+  hourlyRate: "Stundensatz",
+  currency: "Währung",
+  vat: "MwSt. %",
+  invoiceLine: "Rechnungsposition",
+  invoiceLineHint: "{period} wird z. B. zu 09/2026",
+  pensum: "Pensum %",
+  pensumHint: "Anteil eines vollen Pensums, den du diesem Kunden schuldest",
+  workdayHours: "Stunden pro Arbeitstag",
+  workdayHoursHint: "Stunden an einem vollen Arbeitstag, z. B. 8,5",
+  reload: "Neu laden",
+  loadFromFakturoid: "Aus Fakturoid laden",
+  subject: "Kontakt",
+  pickSubject: "Kontakt wählen",
+  subjectId: "Kontakt-ID",
+  generator: "Vorlage",
+  pickGenerator: "Vorlage wählen",
+  generatorId: "Vorlagen-ID",
+  archived: "Archiviert",
+  deleteTitle: "{{name}} löschen?",
+  deleteDescription: "Nur möglich, wenn der Kunde keine Zeiteinträge hat. Archiviere ihn stattdessen, um den Verlauf zu behalten.",
+  create: "Anlegen",
+} satisfies Translation<typeof en>;

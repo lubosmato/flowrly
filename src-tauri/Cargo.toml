@@ -47,6 +47,8 @@ rig = { version = "0.42", package = "rig-core" }
 rig-agent = "0.42"
 active-win-pos-rs = "0.11"
 user-idle = "0.6"
+rust-i18n = "4.2.4"
+sys-locale = "0.3.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 accessibility-sys = "0.1"

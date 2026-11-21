@@ -1,0 +1,17 @@
+export default {
+  title: "Activity",
+  subtitle: "What your machine saw, distilled by the model when you ask for it.",
+  prevMonth: "Previous month",
+  nextMonth: "Next month",
+  summarizing: "Summarizing {{done}}/{{total}}",
+  summarizeDays_one: "Summarize {{count}} day",
+  summarizeDays_other: "Summarize {{count}} days",
+  emptyTitle: "Nothing tracked yet",
+  emptyHint: "The tracker records focused windows while Flowrly runs in the menu bar.",
+  summarize: "Summarize",
+  active: "Active",
+  daysTracked_one: "{{count}} day tracked",
+  daysTracked_other: "{{count}} days tracked",
+  perDay: "Per day",
+  kindsOfWork: "Kinds of work",
+} as const;

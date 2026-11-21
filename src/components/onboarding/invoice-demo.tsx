@@ -2,36 +2,38 @@ import { useMemo } from "react";
 import { eachDayOfInterval, endOfMonth, format, isWeekend, startOfMonth } from "date-fns";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown, ExternalLink, FileText, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "cn";
 import type { ClientInput, InvoicePreview } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Dot } from "@/components/bits";
 import { InvoiceSummary } from "@/components/invoice-summary";
-import { fmtMinutes, invoicedLabel, isoDay, money, shortDay } from "@/lib/format";
+import { fmtDate, fmtMinutes, invoicedLabel, isoDay, money, shortDay } from "@/lib/format";
 import { Press, Slab, Stage, usePhases } from "./kit";
 
 const ROWS = [
-  { start: "09:00", end: "12:30", minutes: 210, description: "API design review" },
-  { start: "08:45", end: "16:45", minutes: 480, description: "Invoice export, edge cases" },
-  { start: "09:15", end: "16:00", minutes: 405, description: "Fakturoid Generator sync" },
-  { start: "09:00", end: "16:30", minutes: 450, description: "Calendar performance" },
-  { start: "10:00", end: "15:45", minutes: 345, description: "Release notes and QA" },
-];
+  { start: "09:00", end: "12:30", minutes: 210, description: "demos.sample.apiReview" },
+  { start: "08:45", end: "16:45", minutes: 480, description: "demos.sample.invoiceExport" },
+  { start: "09:15", end: "16:00", minutes: 405, description: "demos.sample.generatorSync" },
+  { start: "09:00", end: "16:30", minutes: 450, description: "demos.sample.calendarPerformance" },
+  { start: "10:00", end: "15:45", minutes: 345, description: "demos.sample.releaseNotes" },
+] as const;
 const NUMBER = "2026-0042";
 
 // list, press Create invoice, preview, press Create in Fakturoid, created, entries marked
 const PHASES = [2400, 1300, 3200, 1500, 2600, 3400] as const;
 const CAPTIONS = [
-  "Filter Entries to one Client and a period",
-  "Then press Create invoice",
-  "One line: your exact hours × the Hourly Rate",
-  "It is created straight in Fakturoid",
-  "Fakturoid keeps the Invoice and numbers it",
-  "Entries remember the number, so nothing is billed twice",
-];
+  "demos.invoice.captions.filter",
+  "demos.invoice.captions.press",
+  "demos.invoice.captions.line",
+  "demos.invoice.captions.fakturoid",
+  "demos.invoice.captions.numbered",
+  "demos.invoice.captions.remembered",
+] as const;
 
 /** Entries for one Client becoming a Fakturoid Invoice. Mirrors the Entries screen and its invoice dialog. */
 export function InvoiceDemo({ client }: { client: ClientInput }) {
+  const { t } = useTranslation();
   const { phase, cycle } = usePhases(PHASES);
   const name = client.name.trim() || "Acme";
   const rate = client.hourly_rate || 1200;
@@ -46,7 +48,7 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
   const preview: InvoicePreview = {
     client_id: 0,
     period_label: format(month, "MM/yyyy"),
-    line_name: (client.line_description || "Software development {period}").replace("{period}", format(month, "MM/yyyy")),
+    line_name: (client.line_description || t("clients.defaultLineDescription")).replace("{period}", format(month, "MM/yyyy")),
     total_minutes: totalMinutes,
     hours,
     hourly_rate: rate,
@@ -63,13 +65,13 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
   const marked = phase === 5;
 
   return (
-    <Stage caption={CAPTIONS[phase]} progress={(phase + 1) / PHASES.length}>
+    <Stage caption={t(CAPTIONS[phase])} progress={(phase + 1) / PHASES.length}>
       <div className="flex h-full flex-col gap-4">
         <header className="flex items-end justify-between">
-          <h3 className="font-display text-[30px] leading-none font-medium tracking-tight">Entries</h3>
+          <h3 className="font-display text-[30px] leading-none font-medium tracking-tight">{t("shell.entries")}</h3>
           <Press active={phase === 1}>
             <Button size="sm" tabIndex={-1}>
-              <FileText /> Create invoice
+              <FileText /> {t("demos.invoice.createInvoice")}
             </Button>
           </Press>
         </header>
@@ -82,10 +84,10 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           </span>
           <span className="tabular flex h-8 items-center rounded-lg border border-input px-2.5">
-            {format(month, "d MMM")} – {format(endOfMonth(month), "d MMM yyyy")}
+            {fmtDate(month, "dayMonth")} – {fmtDate(endOfMonth(month), "date")}
           </span>
           <span className="tabular ml-auto text-xs text-muted-foreground">
-            {rows.length} entries · {fmtMinutes(totalMinutes)}
+            {t("demos.invoice.count", { count: rows.length, duration: fmtMinutes(totalMinutes) })}
           </span>
         </div>
 
@@ -107,11 +109,11 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
           <table key={cycle} className="w-full text-sm">
             <thead className="text-[11px] tracking-wide text-muted-foreground uppercase">
               <tr>
-                <th className="px-5 py-3 text-left font-medium">Date</th>
-                <th className="px-3 py-3 text-left font-medium">Client</th>
-                <th className="px-3 py-3 text-left font-medium">Time</th>
-                <th className="px-3 py-3 text-right font-medium">Duration</th>
-                <th className="px-3 py-3 text-left font-medium">Description</th>
+                <th className="px-5 py-3 text-left font-medium">{t("common.date")}</th>
+                <th className="px-3 py-3 text-left font-medium">{t("common.client")}</th>
+                <th className="px-3 py-3 text-left font-medium">{t("demos.invoice.time")}</th>
+                <th className="px-3 py-3 text-right font-medium">{t("common.duration")}</th>
+                <th className="px-3 py-3 text-left font-medium">{t("common.description")}</th>
               </tr>
             </thead>
             <tbody>
@@ -132,7 +134,7 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
                     {r.start}–{r.end}
                   </td>
                   <td className="font-display tabular px-3 py-3 text-right text-base whitespace-nowrap">{fmtMinutes(r.minutes)}</td>
-                  <td className="max-w-40 truncate px-3 py-3 text-muted-foreground">{r.description}</td>
+                  <td className="max-w-40 truncate px-3 py-3 text-muted-foreground">{t(r.description)}</td>
                 </motion.tr>
               ))}
             </tbody>
@@ -155,8 +157,8 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
                 transition={{ type: "spring", stiffness: 340, damping: 26 }}
               >
                 <div>
-                  <h4 className="font-display text-2xl font-medium">Invoice {name}</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">Created straight in Fakturoid. There is no draft step, so check the numbers.</p>
+                  <h4 className="font-display text-2xl font-medium">{t("demos.invoice.title", { name })}</h4>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("demos.invoice.noDraft")}</p>
                 </div>
                 <AnimatePresence mode="wait" initial={false}>
                   {created ? (
@@ -169,9 +171,9 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
                       >
                         {NUMBER}
                       </motion.p>
-                      <p className="text-sm text-muted-foreground">Total {money(preview.subtotal! * (1 + client.vat_rate / 100), client.currency)}</p>
+                      <p className="text-sm text-muted-foreground">{t("demos.invoice.total", { amount: money(preview.subtotal! * (1 + client.vat_rate / 100), client.currency) })}</p>
                       <Button className="self-start" tabIndex={-1}>
-                        <ExternalLink /> Open in Fakturoid
+                        <ExternalLink /> {t("demos.invoice.open")}
                       </Button>
                     </motion.div>
                   ) : (
@@ -179,12 +181,12 @@ export function InvoiceDemo({ client }: { client: ClientInput }) {
                       <InvoiceSummary preview={preview} />
                       <div className="mt-2 flex justify-end gap-2">
                         <Button variant="ghost" tabIndex={-1}>
-                          Cancel
+                          {t("common.cancel")}
                         </Button>
                         <Press active={phase === 3}>
                           <Button tabIndex={-1}>
                             {phase === 3 ? <DelayedSpinner /> : <FileText />}
-                            Create in Fakturoid
+                            {t("demos.invoice.create")}
                           </Button>
                         </Press>
                       </div>

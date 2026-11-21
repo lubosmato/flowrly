@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { MousePointer2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "cn";
 
 /**
@@ -148,7 +149,7 @@ export function Stage({
   children,
   caption,
   progress,
-  label = "Example",
+  label,
 }: {
   children: ReactNode;
   caption: string;
@@ -156,11 +157,12 @@ export function Stage({
   progress?: number;
   label?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="@container flex h-full flex-col">
       <div className="flex items-center justify-between px-7 pt-6">
         <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-          {label}
+          {label ?? t("onboarding.kit.example")}
         </span>
       </div>
       <div className="relative m-4 min-h-0 flex-1">

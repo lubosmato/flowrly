@@ -5,6 +5,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use chrono::Local;
 use rusqlite::Connection;
+use rust_i18n::t;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 
@@ -104,6 +105,9 @@ pub fn get_settings(state: State<'_, AppState>) -> AppResult<Settings> {
 }
 
 pub fn apply_settings(app: &AppHandle, state: &AppState, s: &Settings) {
+    if crate::i18n::apply(&s.language) {
+        crate::refresh_menus(app);
+    }
     if let Ok(mut cfg) = state.tracker_cfg.write() {
         *cfg = crate::tracker::TrackerConfig::from_settings(s);
     }
@@ -177,7 +181,7 @@ pub fn open_accessibility_settings() -> AppResult<()> {
 #[specta::specta]
 pub fn open_url(url: String) -> AppResult<()> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err(AppError::Validation("Only http(s) URLs can be opened".into()));
+        return Err(AppError::Validation(t!("errors.only_http").into()));
     }
     tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| AppError::Internal(e.to_string()))
 }
@@ -221,6 +225,7 @@ fn ai_config(conn: &Connection) -> AppResult<ai::AiConfig> {
         model: s.ai_model,
         base_url: Some(s.ai_base_url),
         api_key: secrets::get(SecretKey::AiApiKey)?,
+        language: crate::i18n::ai_language_name(&s.ai_language),
     })
 }
 
@@ -235,11 +240,11 @@ struct DayDigest {
 fn digest(conn: &Connection, day: &str) -> AppResult<DayDigest> {
     let samples = activity::load_samples(conn, day)?;
     if samples.is_empty() {
-        return Err(AppError::NotFound(format!("No tracked activity for {day}")));
+        return Err(AppError::NotFound(t!("errors.no_activity", day = day).into()));
     }
     let agg = activity::aggregate(&samples, Some(Local::now().naive_local()));
     if agg.active_secs < 60 {
-        return Err(AppError::NotFound(format!("Less than a minute of activity tracked on {day}")));
+        return Err(AppError::NotFound(t!("errors.too_little_activity", day = day).into()));
     }
     Ok(DayDigest {
         text: activity::describe_for_llm(day, &agg),
@@ -257,7 +262,7 @@ pub async fn generate_day_summary(state: State<'_, AppState>, day: String) -> Ap
         let conn = state.conn()?;
         (ai_config(&conn)?, digest(&conn, &day)?, repo::list_tags(&conn)?)
     };
-    let out: ai::DaySummaryOut = ai::extract(&cfg, &ai::day_summary_preamble(&tags), &digest.text).await?;
+    let out: ai::DaySummaryOut = ai::extract(&cfg, &ai::day_summary_preamble(&tags, cfg.language), &digest.text).await?;
     let tag_pairs: Vec<(String, i32)> = out.tags.iter().map(|t| (t.name.clone(), t.minutes as i32)).collect();
     let mut conn = state.conn()?;
     repo::save_day_summary(
@@ -277,7 +282,7 @@ pub async fn suggest_entry(state: State<'_, AppState>, day: String) -> AppResult
         let conn = state.conn()?;
         (ai_config(&conn)?, digest(&conn, &day)?)
     };
-    let out: ai::SuggestionOut = ai::extract(&cfg, &ai::suggestion_preamble(), &digest.text).await?;
+    let out: ai::SuggestionOut = ai::extract(&cfg, &ai::suggestion_preamble(cfg.language), &digest.text).await?;
     let valid_time = |s: &str| chrono::NaiveTime::parse_from_str(s, "%H:%M").is_ok();
     let start = Some(out.start_time.clone()).filter(|s| valid_time(s)).or(digest.first_active);
     let end = Some(out.end_time.clone()).filter(|s| valid_time(s)).or(digest.last_active);
@@ -309,7 +314,7 @@ fn fakturoid<'a>(state: &'a AppState, conn: &Connection) -> AppResult<(Fakturoid
 fn require_slug(s: &Settings) -> AppResult<String> {
     let slug = s.fakturoid_account_slug.trim();
     if slug.is_empty() {
-        return Err(AppError::Fakturoid("Fakturoid account is not selected. Pick one in Settings.".into()));
+        return Err(AppError::Fakturoid(t!("errors.fakturoid_account_missing").into()));
     }
     Ok(slug.to_string())
 }
@@ -344,11 +349,11 @@ fn preview(
 ) -> AppResult<(InvoicePreview, Client, Vec<TimeEntry>)> {
     let client_id = filter
         .client_id
-        .ok_or_else(|| AppError::Validation("Pick a client to invoice".into()))?;
+        .ok_or_else(|| AppError::Validation(t!("errors.pick_client_to_invoice").into()))?;
     let client = repo::get_client(conn, client_id)?;
     let all = repo::list_entries(conn, filter)?;
     if all.is_empty() {
-        return Err(AppError::Validation("No time entries match the current filter".into()));
+        return Err(AppError::Validation(t!("errors.no_entries_match").into()));
     }
     let (invoiced, open): (Vec<_>, Vec<_>) = all.iter().cloned().partition(|e| e.invoice_number.is_some());
     let mut invoiced_numbers: Vec<String> = invoiced
@@ -410,13 +415,11 @@ pub async fn create_invoice(
         (prev, client, entries, fx, settings)
     };
     if entries.is_empty() {
-        return Err(AppError::Validation("Every entry in this range is already invoiced".into()));
+        return Err(AppError::Validation(t!("errors.all_invoiced").into()));
     }
     let slug = require_slug(&settings)?;
     if client.fakturoid_subject_id.is_none() && client.fakturoid_generator_id.is_none() {
-        return Err(AppError::Validation(
-            "Client has no Fakturoid subject or generator set. Configure it in Clients.".into(),
-        ));
+        return Err(AppError::Validation(t!("errors.client_without_fakturoid").into()));
     }
     let generator = match client.fakturoid_generator_id {
         Some(id) => Some(fx.generator(&slug, id as i64).await?),
@@ -426,10 +429,7 @@ pub async fn create_invoice(
     let created = fx.create_invoice(&slug, &body).await?;
     let ids: Vec<i32> = entries.iter().map(|e| e.id).collect();
     repo::mark_entries_invoiced(&*state.conn()?, &ids, &created.number).map_err(|e| {
-        AppError::Db(format!(
-            "Invoice {} was created, but its entries could not be marked as invoiced: {e}",
-            created.number
-        ))
+        AppError::Db(t!("errors.invoice_not_marked", number = created.number, error = e).into())
     })?;
     Ok(created)
 }
@@ -484,6 +484,14 @@ pub fn app_paths(state: State<'_, AppState>) -> AppResult<Vec<String>> {
         state.db_path.to_string_lossy().to_string(),
         backup_dir(&state, &conn)?.to_string_lossy().to_string(),
     ])
+}
+
+/// OS language resolved to one the app ships ("en", "de" or "cs"); what
+/// `Settings.language = ""` means.
+#[tauri::command]
+#[specta::specta]
+pub fn system_language() -> String {
+    crate::i18n::system().to_string()
 }
 
 #[tauri::command]

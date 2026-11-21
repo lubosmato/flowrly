@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
+import { useTranslation } from "react-i18next";
 import {
   Activity,
   ArrowLeft,
@@ -12,6 +13,7 @@ import {
   FileText,
   HardDrive,
   KeyRound,
+  Languages,
   Loader2,
   Lock,
   Minus,
@@ -45,13 +47,14 @@ import { InvoiceDemo } from "@/components/onboarding/invoice-demo";
 import { TrackingDemo } from "@/components/onboarding/tracking-demo";
 import { AiDemo } from "@/components/onboarding/ai-demo";
 import { DoneDemo } from "@/components/onboarding/done-demo";
-import { PROVIDERS } from "@/lib/ai-providers";
+import { PROVIDERS, providerLabel } from "@/lib/ai-providers";
 import { errorMessage, keys, useAppPaths, useClients, useSettings } from "@/lib/api";
 import { money } from "@/lib/format";
+import { LANGUAGES, LANGUAGE_NAMES, applyLanguage, currentLanguage, type Language } from "@/i18n";
 import { CURRENCIES, blankClient } from "@/routes/clients";
 import mark from "@/assets/mark.png";
 
-const STEPS = ["Welcome", "Client", "Fakturoid", "Tracking", "AI", "Ready"] as const;
+const STEPS = ["welcome", "client", "fakturoid", "tracking", "ai", "ready"] as const;
 const [WELCOME, CLIENT, FAKTUROID, TRACKING, AI, DONE] = [0, 1, 2, 3, 4, 5];
 
 type Choice = "yes" | "no" | null;
@@ -109,6 +112,7 @@ function Wizard({
   hasFxSecret: boolean;
   hasAiKey: boolean;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [step, setStep] = useState(WELCOME);
@@ -145,7 +149,7 @@ function Wizard({
   });
   const setAi = (patch: Partial<AiForm>) => setAiState((a) => ({ ...a, ...patch }));
   const provider = PROVIDERS.find((p) => p.value === ai.provider) ?? PROVIDERS[0];
-  const providerName = provider.label.replace(" (local)", "");
+  const providerName = provider.label;
 
   const go = (to: number) => {
     setDir(to > step ? 1 : -1);
@@ -171,6 +175,12 @@ function Wizard({
     const saved = await commands.saveSettings({ ...current, ...patch });
     qc.setQueryData(keys.settings, saved);
     return saved;
+  };
+
+  /** Switches the UI at once and stores the choice; does not touch `onboarding_completed`. */
+  const pickLanguage = (lang: Language) => {
+    void applyLanguage(lang);
+    patchSettings({ language: lang }).catch((e) => toast.error(errorMessage(e)));
   };
 
   const saveClient = async (input: ClientInput) => {
@@ -206,13 +216,13 @@ function Wizard({
         await qc.invalidateQueries({ queryKey: keys.secret("fakturoid_client_secret") });
       }
       const accounts = await commands.fakturoidAccounts();
-      if (accounts.length === 0) throw new Error("These credentials have no Fakturoid account.");
+      if (accounts.length === 0) throw new Error(t("onboarding.fakturoid.noAccount"));
       const slug = accounts.find((a) => a.slug === fx.slug)?.slug ?? (accounts.length === 1 ? accounts[0].slug : "");
       setFx({ accounts, slug, secret: "", subjects: null, generators: null });
       if (slug) await loadLinks(slug);
     } catch (e) {
       const message = errorMessage(e);
-      setFx({ error: message.includes("401") ? `Fakturoid did not accept these credentials. ${message}` : message, accounts: null });
+      setFx({ error: message.includes("401") ? t("onboarding.fakturoid.rejected", { message }) : message, accounts: null });
     } finally {
       setBusy(false);
     }
@@ -228,31 +238,31 @@ function Wizard({
 
   switch (step) {
     case WELCOME:
-      primary = { label: "Get started", run: next };
+      primary = { label: t("onboarding.getStarted"), run: next };
       break;
     case CLIENT:
-      primary = { label: "Continue", disabled: !client.name.trim(), run: () => run(async () => (await saveClient(client), next())) };
+      primary = { label: t("common.continue"), disabled: !client.name.trim(), run: () => run(async () => (await saveClient(client), next())) };
       break;
     case FAKTUROID:
       if (fx.choice === "yes" && !fxConnected) {
-        primary = { label: "Connect", disabled: !fx.clientId.trim() || (!fx.secret && !hasFxSecret), run: connectFakturoid };
-        secondary = { label: "Skip for now", run: next };
+        primary = { label: t("onboarding.connect"), disabled: !fx.clientId.trim() || (!fx.secret && !hasFxSecret), run: connectFakturoid };
+        secondary = { label: t("onboarding.skipForNow"), run: next };
       } else if (fx.choice === "yes") {
-        primary = { label: "Continue", disabled: !fxLinked, run: () => run(async () => (await saveClient(client), next())) };
+        primary = { label: t("common.continue"), disabled: !fxLinked, run: () => run(async () => (await saveClient(client), next())) };
       } else {
-        primary = { label: "Continue", disabled: fx.choice === null, run: next };
+        primary = { label: t("common.continue"), disabled: fx.choice === null, run: next };
       }
       break;
     case TRACKING:
       primary = {
-        label: "Continue",
+        label: t("common.continue"),
         run: () => run(async () => (await patchSettings({ tracking_enabled: tracking.enabled, launch_at_login: tracking.launch }), next())),
       };
       break;
     case AI:
       if (ai.choice === "yes") {
         primary = {
-          label: "Continue",
+          label: t("common.continue"),
           disabled: !ai.model.trim() || (provider.needsKey && !ai.key && !hasAiKey),
           run: () =>
             run(async () => {
@@ -265,14 +275,14 @@ function Wizard({
               next();
             }),
         };
-        secondary = { label: "Skip for now", run: next };
+        secondary = { label: t("onboarding.skipForNow"), run: next };
       } else {
-        primary = { label: "Continue", disabled: ai.choice === null, run: next };
+        primary = { label: t("common.continue"), disabled: ai.choice === null, run: next };
       }
       break;
     default:
       primary = {
-        label: replay ? "Back to Flowrly" : "Open Flowrly",
+        label: replay ? t("onboarding.backToFlowrly") : t("onboarding.openFlowrly"),
         run: () =>
           run(async () => {
             await patchSettings({ onboarding_completed: true });
@@ -291,10 +301,10 @@ function Wizard({
     <MotionConfig reducedMotion="user">
       <div className="flex h-screen w-screen flex-col">
         <header data-tauri-drag-region className="relative flex h-14 shrink-0 items-center justify-end pr-8 pl-24">
-          <nav className="absolute left-1/2 flex -translate-x-1/2 items-center gap-0.5" aria-label="Setup steps">
-            {STEPS.map((label, i) => (
+          <nav className="absolute left-1/2 flex -translate-x-1/2 items-center gap-0.5" aria-label={t("onboarding.setupSteps")}>
+            {STEPS.map((id, i) => (
               <button
-                key={label}
+                key={id}
                 type="button"
                 disabled={i > reached || busy}
                 onClick={() => go(i)}
@@ -315,17 +325,17 @@ function Wizard({
                 >
                   {i < step ? <Check className="size-3" strokeWidth={3} /> : i + 1}
                 </span>
-                <span className="relative">{label}</span>
+                <span className="relative">{t(`onboarding.steps.${id}`)}</span>
               </button>
             ))}
           </nav>
           {replay ? (
-            <Button variant="ghost" size="icon-sm" onClick={() => navigate({ to: "/" })} aria-label="Close" title="Close">
+            <Button variant="ghost" size="icon-sm" onClick={() => navigate({ to: "/" })} aria-label={t("common.close")} title={t("common.close")}>
               <X />
             </Button>
           ) : (
             <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-[1080px]:hidden">
-              <Lock className="size-3" /> Saved on this Mac only
+              <Lock className="size-3" /> {t("onboarding.savedLocally")}
             </span>
           )}
         </header>
@@ -349,7 +359,7 @@ function Wizard({
                   exit="exit"
                   className="my-auto flex flex-col gap-5 pt-4 pb-7"
                 >
-                  {step === WELCOME && <WelcomeStep />}
+                  {step === WELCOME && <WelcomeStep onLanguage={pickLanguage} />}
                   {step === CLIENT && <ClientStep form={client} setForm={setClient} existing={clientId !== null && replay} />}
                   {step === FAKTUROID && (
                     <FakturoidStep
@@ -368,10 +378,20 @@ function Wizard({
                     <DoneStep
                       replay={replay}
                       rows={[
-                        { icon: Users, label: "Client", value: `${client.name} · ${money(client.hourly_rate, client.currency)} / h`, on: true },
-                        { icon: FileText, label: "Fakturoid", value: fxReady ? `Connected · ${liveSettings.fakturoid_account_slug}` : "Not connected", on: fxReady },
-                        { icon: Activity, label: "Tracking", value: liveSettings.tracking_enabled ? "On, saved on this Mac only" : "Off", on: liveSettings.tracking_enabled },
-                        { icon: Sparkles, label: "AI", value: aiReady ? `${liveProvider.label} · ${liveSettings.ai_model}` : "Off", on: aiReady },
+                        { icon: Users, label: t("common.client"), value: t("onboarding.done.rate", { name: client.name, rate: money(client.hourly_rate, client.currency) }), on: true },
+                        {
+                          icon: FileText,
+                          label: t("onboarding.done.fakturoid"),
+                          value: fxReady ? t("onboarding.done.connected", { account: liveSettings.fakturoid_account_slug }) : t("onboarding.done.notConnected"),
+                          on: fxReady,
+                        },
+                        {
+                          icon: Activity,
+                          label: t("onboarding.done.tracking"),
+                          value: liveSettings.tracking_enabled ? t("onboarding.done.trackingOn") : t("onboarding.done.off"),
+                          on: liveSettings.tracking_enabled,
+                        },
+                        { icon: Sparkles, label: t("onboarding.done.ai"), value: aiReady ? `${providerLabel(liveProvider)} · ${liveSettings.ai_model}` : t("onboarding.done.off"), on: aiReady },
                       ]}
                     />
                   )}
@@ -382,7 +402,7 @@ function Wizard({
             <footer className="flex shrink-0 items-center gap-2 pt-5">
               {step > WELCOME && (
                 <Button type="button" variant="ghost" className="h-10 px-3" onClick={() => go(step - 1)} disabled={busy}>
-                  <ArrowLeft /> Back
+                  <ArrowLeft /> {t("common.back")}
                 </Button>
               )}
               <div className="ml-auto flex items-center gap-2">
@@ -538,7 +558,9 @@ const num = (v: string) => (v === "" ? 0 : Number(v));
 
 // ---------- Steps ----------
 
-function WelcomeStep() {
+function WelcomeStep({ onLanguage }: { onLanguage: (lang: Language) => void }) {
+  const { t } = useTranslation();
+  const active = currentLanguage();
   return (
     <>
       <Rise>
@@ -552,36 +574,52 @@ function WelcomeStep() {
           transition={{ type: "spring", stiffness: 200, damping: 12, delay: 0.1 }}
         />
       </Rise>
-      <Heading eyebrow="Welcome" title="Welcome to Flowrly">
-        Log the hours you work for each client, let your Mac remember what you did, and turn the month into an invoice. Setting up takes about two
-        minutes.
+      <Heading eyebrow={t("onboarding.welcome.eyebrow")} title={t("onboarding.welcome.title")}>
+        {t("onboarding.welcome.body")}
       </Heading>
       <Rise>
-        <Privacy title="Nothing is sent online. Everything is saved locally.">
-          <p>
-            No account, no cloud, no analytics. Your clients, hours and tracked activity live in one database file on this Mac, and Flowrly never
-            sends them anywhere.
-          </p>
-          <p>The two optional integrations offered in this setup are the only exception, and each one talks to its service only when you press its button.</p>
+        <Privacy title={t("onboarding.welcome.privacyTitle")}>
+          <p>{t("onboarding.welcome.privacyLocal")}</p>
+          <p>{t("onboarding.welcome.privacyException")}</p>
         </Privacy>
+      </Rise>
+      <Rise>
+        <div role="group" aria-label={t("common.language")} className="flex items-center gap-0.5 text-xs text-muted-foreground">
+          <Languages className="mr-1.5 size-3.5" aria-hidden />
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              lang={lang}
+              aria-pressed={lang === active}
+              onClick={() => onLanguage(lang)}
+              className={cn(
+                "rounded-full px-2.5 py-1 font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                lang === active ? "bg-foreground/[0.07] text-foreground" : "hover:text-foreground",
+              )}
+            >
+              {LANGUAGE_NAMES[lang]}
+            </button>
+          ))}
+        </div>
       </Rise>
     </>
   );
 }
 
 function ClientStep({ form, setForm, existing }: { form: ClientInput; setForm: (f: ClientInput) => void; existing: boolean }) {
+  const { t } = useTranslation();
   const set = <K extends keyof ClientInput>(k: K, v: ClientInput[K]) => setForm({ ...form, [k]: v });
   return (
     <>
-      <Heading eyebrow="Step 1 of 4 · Your first client" title="Who do you work for?">
-        A Client is a company you bill. Every Time Entry belongs to one, and its Hourly Rate is what an Invoice multiplies your hours by.{" "}
-        {existing ? "This is the client you already have; change it here if you like." : "You can add more clients later."}
+      <Heading eyebrow={t("onboarding.client.eyebrow")} title={t("onboarding.client.title")}>
+        {existing ? t("onboarding.client.bodyExisting") : t("onboarding.client.bodyNew")}
       </Heading>
       <Rise className="flex flex-col gap-3.5">
-        <Field label="Name">
+        <Field label={t("onboarding.client.name")}>
           <Input autoFocus value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Acme s.r.o." className="h-10 text-base md:text-base" />
         </Field>
-        <Field label="Colour" hint="Marks this client on the calendar and in lists">
+        <Field label={t("onboarding.client.colour")} hint={t("onboarding.client.colourHint")}>
           <div className="flex h-8 items-center gap-2.5">
             {CLIENT_COLORS.map((c) => (
               <button
@@ -597,10 +635,10 @@ function ClientStep({ form, setForm, existing }: { form: ClientInput; setForm: (
           </div>
         </Field>
         <div className="grid grid-cols-[1fr_auto_auto] gap-3">
-          <Field label="Hourly rate">
+          <Field label={t("onboarding.client.hourlyRate")}>
             <Input type="number" min={0} step={1} value={form.hourly_rate || ""} placeholder="0" onChange={(e) => set("hourly_rate", num(e.target.value))} className="font-display text-lg md:text-lg" />
           </Field>
-          <Field label="Currency">
+          <Field label={t("onboarding.client.currency")}>
             <Select value={form.currency} onValueChange={(v) => set("currency", v)}>
               <SelectTrigger className="w-24">
                 <SelectValue />
@@ -614,15 +652,15 @@ function ClientStep({ form, setForm, existing }: { form: ClientInput; setForm: (
               </SelectContent>
             </Select>
           </Field>
-          <Field label="VAT %" className="w-20">
+          <Field label={t("onboarding.client.vat")} className="w-20">
             <Input type="number" min={0} max={100} value={form.vat_rate} onChange={(e) => set("vat_rate", num(e.target.value))} />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Pensum %" hint="Share of a full workload you owe this client">
+          <Field label={t("onboarding.client.pensum")} hint={t("onboarding.client.pensumHint")}>
             <Input type="number" min={0} max={100} step={5} value={form.pensum_percent} onChange={(e) => set("pensum_percent", num(e.target.value))} />
           </Field>
-          <Field label="Workday hours" hint="Hours in a full working day, e.g. 8.5">
+          <Field label={t("onboarding.client.workdayHours")} hint={t("onboarding.client.workdayHoursHint")}>
             <Input type="number" min={0.5} max={24} step={0.5} value={form.workday_hours ?? 8} onChange={(e) => set("workday_hours", num(e.target.value))} />
           </Field>
         </div>
@@ -648,47 +686,42 @@ function FakturoidStep({
   setClient: (c: ClientInput) => void;
   pickAccount: (slug: string) => void;
 }) {
+  const { t } = useTranslation();
   const connected = fx.accounts !== null;
   const account = fx.accounts?.find((a) => a.slug === fx.slug);
   /** Editing the credentials drops the connection made with the old ones. */
   const edit = (patch: Partial<FxForm>) => setFx({ ...patch, accounts: null, subjects: null, generators: null, error: null });
   return (
     <>
-      <Heading eyebrow="Step 2 of 4 · Invoicing" title="Invoice through Fakturoid?">
-        Fakturoid is an online invoicing service. Connect it and Flowrly creates the Invoice there from the hours you logged: one line, exact hours,
-        at the client's rate.
+      <Heading eyebrow={t("onboarding.fakturoid.eyebrow")} title={t("onboarding.fakturoid.title")}>
+        {t("onboarding.fakturoid.body")}
       </Heading>
       <Rise>
         <Privacy>
-          <p>
-            Only the invoice you create is sent to Fakturoid, at the moment you press the button. Your credentials are kept in the macOS Keychain,
-            not in the database.
-          </p>
+          <p>{t("onboarding.fakturoid.privacy")}</p>
         </Privacy>
       </Rise>
       <Rise className="flex flex-col gap-2">
-        <ChoiceCards value={fx.choice} onChange={(choice) => setFx({ choice })} yes="Yes, connect it" no="Not now" />
+        <ChoiceCards value={fx.choice} onChange={(choice) => setFx({ choice })} yes={t("onboarding.fakturoid.yes")} no={t("onboarding.notNow")} />
         <Reveal show={fx.choice === "no"}>
-          <p className="pt-2 text-xs leading-relaxed text-muted-foreground">
-            No problem. You can still export your entries as CSV, and connect Fakturoid later in Settings.
-          </p>
+          <p className="pt-2 text-xs leading-relaxed text-muted-foreground">{t("onboarding.fakturoid.declined")}</p>
         </Reveal>
         <Reveal show={fx.choice === "yes"}>
           <p className="pt-2 text-xs leading-relaxed text-muted-foreground">
-            Create API credentials in Fakturoid under Settings → User account, then paste them here.{" "}
+            {t("onboarding.fakturoid.instructions")}{" "}
             <button type="button" className="inline-flex items-center gap-1 font-medium text-primary hover:underline" onClick={() => commands.openUrl("https://app.fakturoid.cz")}>
-              Open Fakturoid <ExternalLink className="size-3" />
+              {t("onboarding.fakturoid.open")} <ExternalLink className="size-3" />
             </button>
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Client ID">
+            <Field label={t("onboarding.fakturoid.clientId")}>
               <Input autoFocus value={fx.clientId} onChange={(e) => edit({ clientId: e.target.value })} autoComplete="off" spellCheck={false} />
             </Field>
-            <Field label="Client secret">
-              <Input type="password" value={fx.secret} onChange={(e) => edit({ secret: e.target.value })} placeholder={hasSecret ? "•••••••• (stored)" : ""} autoComplete="off" />
+            <Field label={t("onboarding.fakturoid.clientSecret")}>
+              <Input type="password" value={fx.secret} onChange={(e) => edit({ secret: e.target.value })} placeholder={hasSecret ? t("onboarding.fakturoid.stored") : ""} autoComplete="off" />
             </Field>
           </div>
-          <Field label="Contact e-mail" hint="Sent in the User-Agent header, as Fakturoid requires">
+          <Field label={t("onboarding.fakturoid.email")} hint={t("onboarding.fakturoid.emailHint")}>
             <Input type="email" value={fx.email} onChange={(e) => edit({ email: e.target.value })} placeholder="you@example.com" />
           </Field>
           {fx.error && (
@@ -703,13 +736,13 @@ function FakturoidStep({
           <Reveal show={connected}>
             <p className="flex items-center gap-2 text-sm font-medium">
               <CircleCheck className="size-4 text-primary" />
-              Connected{account ? ` to ${account.name || account.slug}` : ""}
+              {account ? t("onboarding.fakturoid.connectedTo", { name: account.name || account.slug }) : t("onboarding.fakturoid.connected")}
             </p>
             {fx.accounts && fx.accounts.length > 1 && (
-              <Field label="Account">
+              <Field label={t("onboarding.fakturoid.account")}>
                 <Select value={fx.slug} onValueChange={pickAccount} disabled={busy}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Pick account" />
+                    <SelectValue placeholder={t("onboarding.fakturoid.pickAccount")} />
                   </SelectTrigger>
                   <SelectContent>
                     {fx.accounts.map((a) => (
@@ -723,13 +756,16 @@ function FakturoidStep({
             )}
             {fx.subjects && fx.generators && (
               <div className="grid grid-cols-2 gap-3">
-                <Field label={`Subject for ${client.name || "your client"}`} hint="Who the Invoice is addressed to">
+                <Field
+                  label={client.name ? t("onboarding.fakturoid.subjectFor", { name: client.name }) : t("onboarding.fakturoid.subjectForYourClient")}
+                  hint={t("onboarding.fakturoid.subjectHint")}
+                >
                   <Select
                     value={client.fakturoid_subject_id ? String(client.fakturoid_subject_id) : ""}
                     onValueChange={(v) => setClient({ ...client, fakturoid_subject_id: v ? Number(v) : null })}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Pick subject" />
+                      <SelectValue placeholder={t("onboarding.fakturoid.pickSubject")} />
                     </SelectTrigger>
                     <SelectContent>
                       {fx.subjects.map((s) => (
@@ -740,7 +776,7 @@ function FakturoidStep({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Generator" hint="Optional template: currency, VAT mode, due days">
+                <Field label={t("onboarding.fakturoid.generator")} hint={t("onboarding.fakturoid.generatorHint")}>
                   <Select
                     value={client.fakturoid_generator_id ? String(client.fakturoid_generator_id) : ""}
                     onValueChange={(v) => {
@@ -749,7 +785,7 @@ function FakturoidStep({
                     }}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder={fx.generators.length ? "Pick generator" : "None in Fakturoid"} />
+                      <SelectValue placeholder={fx.generators.length ? t("onboarding.fakturoid.pickGenerator") : t("onboarding.fakturoid.noGenerators")} />
                     </SelectTrigger>
                     <SelectContent>
                       {fx.generators.map((g) => (
@@ -780,37 +816,38 @@ function TrackingStep({
   idleMinutes: number;
   ignored: string[];
 }) {
+  const { t } = useTranslation();
   const { data: paths } = useAppPaths();
   const granted = useQuery({ queryKey: ["accessibility"], queryFn: commands.accessibilityGranted, refetchInterval: 2000, enabled: value.enabled });
   const [asked, setAsked] = useState(false);
   return (
     <>
-      <Heading eyebrow="Step 3 of 4 · Activity tracking" title="Let your Mac remember the day?">
-        While Flowrly runs in the menu bar, it can note which window has focus, so you can look back on a day you forgot to log.
+      <Heading eyebrow={t("onboarding.tracking.eyebrow")} title={t("onboarding.tracking.title")}>
+        {t("onboarding.tracking.body")}
       </Heading>
       <Rise>
         <div className="rounded-2xl border border-input px-4">
           <label className="flex items-center justify-between gap-4 py-3.5">
-            <span className="text-sm font-medium">Track activity</span>
+            <span className="text-sm font-medium">{t("onboarding.tracking.track")}</span>
             <Switch checked={value.enabled} onCheckedChange={(enabled) => onChange({ ...value, enabled })} />
           </label>
           <Reveal show={value.enabled}>
             <div className="-mx-1 -mt-1 -mb-1.5 flex flex-col divide-y divide-border/60 border-t border-border/60 px-1">
               <label className="flex items-center justify-between gap-4 py-3 text-sm">
                 <span>
-                  Launch at login
-                  <span className="block text-xs text-muted-foreground">Tracking only runs while Flowrly does.</span>
+                  {t("onboarding.tracking.launch")}
+                  <span className="block text-xs text-muted-foreground">{t("onboarding.tracking.launchHint")}</span>
                 </span>
                 <Switch checked={value.launch} onCheckedChange={(launch) => onChange({ ...value, launch })} />
               </label>
               <div className="flex items-center justify-between gap-4 py-3 text-sm">
                 <span>
-                  Accessibility permission
-                  <span className="block text-xs text-muted-foreground">macOS asks once. Used only to read window titles.</span>
+                  {t("onboarding.tracking.permission")}
+                  <span className="block text-xs text-muted-foreground">{t("onboarding.tracking.permissionHint")}</span>
                 </span>
                 {granted.data ? (
                   <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-primary">
-                    <CircleCheck className="size-4" /> Granted
+                    <CircleCheck className="size-4" /> {t("onboarding.tracking.granted")}
                   </span>
                 ) : (
                   <Button
@@ -826,7 +863,7 @@ function TrackingStep({
                       void granted.refetch();
                     }}
                   >
-                    <KeyRound /> {asked ? "Open System Settings" : "Grant access"}
+                    <KeyRound /> {asked ? t("onboarding.tracking.openSystemSettings") : t("onboarding.tracking.grantAccess")}
                   </Button>
                 )}
               </div>
@@ -835,14 +872,23 @@ function TrackingStep({
         </div>
       </Rise>
       <Rise className="grid grid-cols-2 gap-5">
-        <Facts title="It records" positive items={["The app in front", "Its window title (for a browser, the page title)", `When, and if you were idle (${idleMinutes} min without input)`]} />
         <Facts
-          title="It never records"
-          items={["Screenshots or screen content", "Keystrokes, clipboard, mouse", "Contents of pages or files", `Names of Ignored Apps${ignored.length ? `, like ${ignored[0]}` : ""}`]}
+          title={t("onboarding.tracking.records")}
+          positive
+          items={[t("onboarding.tracking.recordsApp"), t("onboarding.tracking.recordsTitle"), t("onboarding.tracking.recordsIdle", { minutes: idleMinutes })]}
+        />
+        <Facts
+          title={t("onboarding.tracking.never")}
+          items={[
+            t("onboarding.tracking.neverScreen"),
+            t("onboarding.tracking.neverInput"),
+            t("onboarding.tracking.neverContents"),
+            ignored.length ? t("onboarding.tracking.neverIgnoredLike", { app: ignored[0] }) : t("onboarding.tracking.neverIgnored"),
+          ]}
         />
       </Rise>
       <Rise>
-        <Privacy icon={HardDrive} title="Saved on this Mac only. Never uploaded: Flowrly has no server to send it to.">
+        <Privacy icon={HardDrive} title={t("onboarding.tracking.privacyTitle")}>
           {paths?.[0] && (
             <p className="truncate font-mono text-[11px] opacity-80" title={paths[0]}>
               {paths[0]}
@@ -872,31 +918,26 @@ function Facts({ title, items, positive }: { title: string; items: string[]; pos
 }
 
 function AiStep({ ai, setAi, hasKey, trackingOn }: { ai: AiForm; setAi: (p: Partial<AiForm>) => void; hasKey: boolean; trackingOn: boolean }) {
+  const { t } = useTranslation();
   const provider = PROVIDERS.find((p) => p.value === ai.provider) ?? PROVIDERS[0];
   return (
     <>
-      <Heading eyebrow="Step 4 of 4 · AI" title="Want AI to write it up?">
-        Connect a language model and it turns a day of tracked windows into a Day Summary with Tags, or into a Suggestion for a Time Entry. It runs
-        only when you press the button, never in the background.
+      <Heading eyebrow={t("onboarding.ai.eyebrow")} title={t("onboarding.ai.title")}>
+        {t("onboarding.ai.body")}
       </Heading>
       <Rise>
         <Privacy>
-          <p>
-            What is sent: that one day's app names, window titles and minutes, to the provider you pick, with your own API key. Clients, rates and
-            entries are never sent. Choose Ollama and it all stays on this Mac.
-          </p>
+          <p>{t("onboarding.ai.privacy")}</p>
         </Privacy>
       </Rise>
       <Rise className="flex flex-col gap-2">
-        <ChoiceCards value={ai.choice} onChange={(choice) => setAi({ choice })} yes="Yes, set it up" no="Not now" />
+        <ChoiceCards value={ai.choice} onChange={(choice) => setAi({ choice })} yes={t("onboarding.ai.yes")} no={t("onboarding.notNow")} />
         <Reveal show={ai.choice === "no"}>
-          <p className="pt-2 text-xs leading-relaxed text-muted-foreground">
-            Fine. Flowrly works without it, and you can add a provider later in Settings.
-          </p>
+          <p className="pt-2 text-xs leading-relaxed text-muted-foreground">{t("onboarding.ai.declined")}</p>
         </Reveal>
         <Reveal show={ai.choice === "yes"}>
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <Field label="Provider">
+            <Field label={t("onboarding.ai.provider")}>
               <Select
                 value={ai.provider}
                 onValueChange={(v) => {
@@ -910,29 +951,29 @@ function AiStep({ ai, setAi, hasKey, trackingOn }: { ai: AiForm; setAi: (p: Part
                 <SelectContent>
                   {PROVIDERS.map((p) => (
                     <SelectItem key={p.value} value={p.value}>
-                      {p.label}
+                      {providerLabel(p)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Model">
+            <Field label={t("onboarding.ai.model")}>
               <Input value={ai.model} onChange={(e) => setAi({ model: e.target.value })} spellCheck={false} />
             </Field>
           </div>
           {provider.needsKey ? (
-            <Field label="API key" hint="Kept in the macOS Keychain. Used only for requests you start.">
-              <Input type="password" value={ai.key} onChange={(e) => setAi({ key: e.target.value })} placeholder={hasKey ? "•••••••• (stored)" : ""} autoComplete="off" />
+            <Field label={t("onboarding.ai.apiKey")} hint={t("onboarding.ai.apiKeyHint")}>
+              <Input type="password" value={ai.key} onChange={(e) => setAi({ key: e.target.value })} placeholder={hasKey ? t("onboarding.fakturoid.stored") : ""} autoComplete="off" />
             </Field>
           ) : (
-            <Field label="Base URL" hint="Defaults to http://localhost:11434. Nothing leaves this Mac.">
-              <Input value={ai.baseUrl} onChange={(e) => setAi({ baseUrl: e.target.value })} placeholder="optional" spellCheck={false} />
+            <Field label={t("onboarding.ai.baseUrl")} hint={t("onboarding.ai.baseUrlHint")}>
+              <Input value={ai.baseUrl} onChange={(e) => setAi({ baseUrl: e.target.value })} placeholder={t("onboarding.ai.optional")} spellCheck={false} />
             </Field>
           )}
           {!trackingOn && (
             <p className="flex gap-2 text-xs leading-relaxed text-muted-foreground">
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-              AI works from tracked activity, and you left tracking off. It will have nothing to read until you turn tracking on.
+              {t("onboarding.ai.trackingOff")}
             </p>
           )}
         </Reveal>
@@ -942,10 +983,11 @@ function AiStep({ ai, setAi, hasKey, trackingOn }: { ai: AiForm; setAi: (p: Part
 }
 
 function DoneStep({ rows, replay }: { rows: { icon: LucideIcon; label: string; value: string; on: boolean }[]; replay: boolean }) {
+  const { t } = useTranslation();
   return (
     <>
-      <Heading eyebrow={replay ? "That's the tour" : "Ready"} title="You're all set.">
-        Flowrly lives in the menu bar and keeps running when you close the window. Everything here can be changed later in Settings and Clients.
+      <Heading eyebrow={replay ? t("onboarding.done.eyebrowReplay") : t("onboarding.done.eyebrow")} title={t("onboarding.done.title")}>
+        {t("onboarding.done.body")}
       </Heading>
       <Rise>
         <ul className="flex flex-col divide-y divide-border/60 rounded-2xl border border-input">
@@ -965,7 +1007,7 @@ function DoneStep({ rows, replay }: { rows: { icon: LucideIcon; label: string; v
       </Rise>
       <Rise>
         <Privacy icon={Lock}>
-          <p>Your data stays in a local database on this Mac. Nothing is sent online unless you press a button that says so.</p>
+          <p>{t("onboarding.done.privacy")}</p>
         </Privacy>
       </Rise>
     </>

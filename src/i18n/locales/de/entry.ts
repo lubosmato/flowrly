@@ -1,0 +1,53 @@
+import type en from "../en/entry";
+import type { Translation } from "../types";
+
+export default {
+  form: {
+    pickClient: "Wähle zuerst einen Kunden",
+    fillStartEnd: "Gib Beginn und Ende ein",
+    enterDuration: "Gib eine Dauer ein, z. B. 3 h 30 min",
+    trackerSaw: "Erfasst wurden etwa {{duration}} Arbeit",
+    invoicedNote: "{{invoiced}}. Änderungen hier wirken sich nicht auf die Rechnung aus.",
+    startEnd: "Beginn / Ende",
+    durationHint: "3 h 30 min · 3:30 · 3,5 · 90m · 1d (= {{workday}} bei diesem Kunden)",
+    durationPlaceholder: "3 h 30 min",
+    timeHint: "24-Stunden-Format · 9, 930 und 17.30 gehen alle",
+    descriptionPlaceholder: "Woran hast du gearbeitet?",
+    suggest: "Vorschlagen",
+    suggestTitle: "Beginn, Ende, Dauer und Beschreibung aus der erfassten Aktivität übernehmen",
+    addEntry: "Eintrag hinzufügen",
+  },
+  day: {
+    range_one: "{{first}} bis {{last}} · {{count}} Probe",
+    range_other: "{{first}} bis {{last}} · {{count}} Proben",
+    loading: "Erfasste Aktivität wird geladen",
+    active: "Aktiv",
+    idle: "Inaktiv",
+    throughTheDay: "Über den Tag",
+    summary: "Zusammenfassung",
+    regenerate: "Neu erstellen",
+    summarize: "Mit KI zusammenfassen",
+    generated: "Erstellt {{at}}",
+    noSummary: "Noch keine Zusammenfassung.",
+    apps: "Apps",
+    windows: "Fenster",
+    noTitle: "(kein Titel)",
+    nothingRecorded: "Nichts erfasst.",
+  },
+  client: {
+    archived: "Archiviert",
+    perHourVat: "/ h · MwSt. {{vat}} %",
+    pensum: "Pensum {{pensum}} % · Arbeitstag {{hours}} h",
+    subject: "Kontakt #{{id}}",
+    noSubject: "Kein Fakturoid-Kontakt",
+    generator: " · Vorlage #{{id}}",
+  },
+  invoice: {
+    line: "Position",
+    entries: "Einträge",
+    quantity: "Menge",
+    rate: "Satz",
+    rateValue: "{{rate}} / h · MwSt. {{vat}} %",
+    subtotal: "Zwischensumme",
+  },
+} satisfies Translation<typeof en>;

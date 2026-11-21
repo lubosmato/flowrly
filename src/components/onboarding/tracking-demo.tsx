@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from "motion/react";
 import { EyeOff, HardDrive, Moon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "cn";
 import { Stat } from "@/components/bits";
-import { fmtMinutes } from "@/lib/format";
+import { appLabel, fmtMinutes } from "@/lib/format";
 import { Num, Slab, SlabLabel, Stage, usePhases } from "./kit";
 
 const IGNORED = "Ignored app";
@@ -33,20 +34,21 @@ const PHASES = [...EVENTS.map(() => 2100), 3200];
 
 /** The tracker at work: focused window in, Activity Samples out, totals per app. Mirrors the day detail sheet. */
 export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleMinutes: number }) {
+  const { t } = useTranslation();
   const { phase } = usePhases(PHASES, !enabled);
   const hold = phase >= EVENTS.length;
   const seen = EVENTS.slice(0, Math.min(phase + 1, EVENTS.length));
   const current = seen[seen.length - 1];
 
   const captions = [
-    "Every 2 seconds: which window has focus?",
-    "A change is saved as an Activity Sample: app, title, time",
-    "Only the title bar text, never what is inside the window",
-    "Ignored Apps count as time, but are never named",
-    "Activity Samples add up per app",
-    `No keyboard or mouse for ${idleMinutes} min counts as idle`,
-    "Back at the keyboard, tracking picks up again",
-    "That is all Flowrly stores, and it stays on this Mac",
+    t("demos.tracking.captions.poll"),
+    t("demos.tracking.captions.sample"),
+    t("demos.tracking.captions.titleOnly"),
+    t("demos.tracking.captions.ignored"),
+    t("demos.tracking.captions.perApp"),
+    t("demos.tracking.captions.idle", { minutes: idleMinutes }),
+    t("demos.tracking.captions.back"),
+    t("demos.tracking.captions.local"),
   ];
 
   const perApp = new Map<string, number>();
@@ -67,7 +69,7 @@ export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleM
 
   return (
     <Stage
-      caption={enabled ? captions[phase] : "Tracking is off. Nothing is recorded."}
+      caption={enabled ? captions[phase] : t("demos.tracking.off")}
       progress={enabled ? (phase + 1) / PHASES.length : 0}
     >
       <div className={cn("flex h-full flex-col gap-4 transition-[opacity,filter] duration-500", !enabled && "opacity-35 grayscale")}>
@@ -88,7 +90,7 @@ export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleM
                 )}
                 <span className={cn("relative size-2 rounded-full", enabled ? "bg-primary" : "bg-muted-foreground")} />
               </span>
-              checked every 2 s
+              {t("demos.tracking.checked")}
             </span>
           </div>
           <div className="relative h-[88px]">
@@ -108,13 +110,13 @@ export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleM
                   {current.ignored ? <EyeOff className="size-5" /> : current.app[0]}
                 </span>
                 <div className={cn("min-w-0 flex-1", current.idle && "opacity-40")}>
-                  <p className="text-base leading-tight font-medium">{current.app}</p>
+                  <p className="text-base leading-tight font-medium">{appLabel(current.app)}</p>
                   <p className="mt-1 truncate text-sm text-muted-foreground">{current.ignored ? "•••••••• ••••••" : current.title}</p>
                 </div>
-                {current.ignored && <Chip>Ignored App</Chip>}
+                {current.ignored && <Chip>{t("demos.tracking.ignoredApp")}</Chip>}
                 {current.idle && (
                   <Chip>
-                    <Moon className="size-3" /> idle
+                    <Moon className="size-3" /> {t("demos.tracking.idle")}
                   </Chip>
                 )}
               </motion.div>
@@ -125,9 +127,9 @@ export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleM
         {/* What gets written down */}
         <Slab className="flex flex-col gap-2 px-5 py-4">
           <div className="flex items-center justify-between">
-            <SlabLabel>Activity Samples</SlabLabel>
+            <SlabLabel>{t("demos.tracking.samples")}</SlabLabel>
             <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <HardDrive className="size-3" /> saved on this Mac only
+              <HardDrive className="size-3" /> {t("demos.tracking.localOnly")}
             </span>
           </div>
           <ul className="flex h-[93px] flex-col overflow-hidden text-sm">
@@ -145,11 +147,11 @@ export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleM
                   <span className="tabular w-11 shrink-0 text-xs text-muted-foreground">{s.at}</span>
                   <span className="size-2 shrink-0 rounded-full" style={{ background: s.idle ? "transparent" : APP_COLOR[s.ignored ? IGNORED : s.app], boxShadow: s.idle ? "inset 0 0 0 1px var(--muted-foreground)" : undefined }} />
                   {s.idle ? (
-                    <span className="text-muted-foreground">idle</span>
+                    <span className="text-muted-foreground">{t("demos.tracking.idle")}</span>
                   ) : (
                     <>
-                      <span className="shrink-0">{s.ignored ? IGNORED : s.app}</span>
-                      <span className="truncate text-muted-foreground">{s.ignored ? "(not recorded)" : s.title}</span>
+                      <span className="shrink-0">{appLabel(s.ignored ? IGNORED : s.app)}</span>
+                      <span className="truncate text-muted-foreground">{s.ignored ? t("demos.tracking.notRecorded") : s.title}</span>
                     </>
                   )}
                 </motion.li>
@@ -161,13 +163,13 @@ export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleM
         {/* What they add up to */}
         <div className="grid min-h-0 flex-1 grid-cols-[1fr_auto] gap-8 px-1">
           <div className="flex flex-col gap-2">
-            <SlabLabel>Apps</SlabLabel>
+            <SlabLabel>{t("demos.tracking.apps")}</SlabLabel>
             <ul className="flex flex-col gap-2">
               <AnimatePresence initial={false} mode="popLayout">
                 {apps.map(([app, minutes]) => (
                   <motion.li key={app} layout className="flex flex-col gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <div className="flex justify-between text-sm">
-                      <span className="truncate">{app}</span>
+                      <span className="truncate">{appLabel(app)}</span>
                       <span className="tabular shrink-0 text-muted-foreground">{fmtMinutes(minutes)}</span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
@@ -182,8 +184,8 @@ export function TrackingDemo({ enabled, idleMinutes }: { enabled: boolean; idleM
             </ul>
           </div>
           <div className="flex w-36 flex-col gap-4">
-            <Stat label="Active" value={<Num value={active} format={fmtMinutes} ms={500} />} />
-            <Stat label="Idle" value={<Num value={idle} format={fmtMinutes} ms={500} />} />
+            <Stat label={t("demos.tracking.active")} value={<Num value={active} format={fmtMinutes} ms={500} />} />
+            <Stat label={t("demos.tracking.idleTotal")} value={<Num value={idle} format={fmtMinutes} ms={500} />} />
           </div>
         </div>
       </div>

@@ -1,19 +1,22 @@
 import { format, parseISO } from "date-fns";
+import i18n, { intlLocale } from "@/i18n";
 
-/** 210 -> "3h 30m", 45 -> "45m", 0 -> "0m" */
+/** 210 -> "3h 30m", 45 -> "45m", 0 -> "0m" (units follow the UI language) */
 export function fmtMinutes(minutes: number | null | undefined): string {
   const m = Math.max(0, Math.round(minutes ?? 0));
   const h = Math.floor(m / 60);
   const r = m % 60;
-  if (h === 0) return `${r}m`;
-  if (r === 0) return `${h}h`;
-  return `${h}h ${r}m`;
+  const hs = i18n.t("dates.hours", { count: h });
+  const ms = i18n.t("dates.minutes", { count: r });
+  if (h === 0) return ms;
+  if (r === 0) return hs;
+  return `${hs} ${ms}`;
 }
 
-/** 210 -> "3.5", 45 -> "0.75" */
+/** 210 -> "3.5", 45 -> "0.75" ("3,5" in German and Czech) */
 export function fmtHours(minutes: number | null | undefined, digits = 2): string {
   const h = (minutes ?? 0) / 60;
-  return h.toFixed(digits).replace(/\.?0+$/, "") || "0";
+  return new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: digits, useGrouping: false }).format(h);
 }
 
 /**
@@ -39,14 +42,16 @@ export function parseDuration(raw: string, workdayMinutes = 8 * 60): number | nu
 }
 
 export function money(n: number | null | undefined, currency = "CZK"): string {
-  return new Intl.NumberFormat("cs-CZ", { style: "currency", currency, maximumFractionDigits: 0 }).format(n ?? 0);
+  return new Intl.NumberFormat(intlLocale(), { style: "currency", currency, maximumFractionDigits: 0 }).format(n ?? 0);
 }
 
 export const isoDay = (d: Date) => format(d, "yyyy-MM-dd");
 export const fromIso = (s: string) => parseISO(s);
-export const prettyDay = (s: string) => format(parseISO(s), "EEEE d MMMM");
-export const shortDay = (s: string) => format(parseISO(s), "EEE d MMM");
-export const monthLabel = (d: Date) => format(d, "LLLL yyyy");
+/** Formats with a localized pattern from `dates.*` in the locale files. */
+export const fmtDate = (d: Date, pattern: "day" | "dayShort" | "date" | "dayMonth" | "month") => format(d, i18n.t(`dates.${pattern}`));
+export const prettyDay = (s: string) => fmtDate(parseISO(s), "day");
+export const shortDay = (s: string) => fmtDate(parseISO(s), "dayShort");
+export const monthLabel = (d: Date) => fmtDate(d, "month");
 
 /**
  * Parse a clock time typed by a human into "HH:MM" (24h). Accepts "9", "09:05",
@@ -67,4 +72,10 @@ export function parseTime(raw: string): string | null {
 }
 
 /** "Invoiced · 2026-0042", or just "Invoiced" when the number is unknown (""). */
-export const invoicedLabel = (number: string) => (number ? `Invoiced · ${number}` : "Invoiced");
+export const invoicedLabel = (number: string) =>
+  number ? i18n.t("common.invoicedNumber", { number }) : i18n.t("common.invoiced");
+
+/** The tracker records ignored apps under this name (`IGNORED_APP_LABEL` in tracker.rs). */
+const IGNORED_APP = "Ignored app";
+/** App name as shown to the user: the ignored-app placeholder is translated, real names are not. */
+export const appLabel = (app: string) => (app === IGNORED_APP ? i18n.t("common.ignoredApp") : app);

@@ -1,0 +1,225 @@
+_version: 2
+
+# ---------- Native menu ----------
+menu.about:
+  en: About Flowrly
+  de: Über Flowrly
+  cs: O aplikaci Flowrly
+menu.settings_ellipsis:
+  en: Settings…
+  de: Einstellungen…
+  cs: Nastavení…
+menu.services:
+  en: Services
+  de: Dienste
+  cs: Služby
+menu.hide:
+  en: Hide Flowrly
+  de: Flowrly ausblenden
+  cs: Skrýt Flowrly
+menu.hide_others:
+  en: Hide Others
+  de: Andere ausblenden
+  cs: Skrýt ostatní
+menu.show_all:
+  en: Show All
+  de: Alle einblenden
+  cs: Zobrazit vše
+menu.quit:
+  en: Quit Flowrly
+  de: Flowrly beenden
+  cs: Ukončit Flowrly
+menu.file:
+  en: File
+  de: Ablage
+  cs: Soubor
+menu.close_window:
+  en: Close Window
+  de: Fenster schließen
+  cs: Zavřít okno
+menu.edit:
+  en: Edit
+  de: Bearbeiten
+  cs: Úpravy
+menu.undo:
+  en: Undo
+  de: Widerrufen
+  cs: Odvolat
+menu.redo:
+  en: Redo
+  de: Wiederholen
+  cs: Znovu
+menu.cut:
+  en: Cut
+  de: Ausschneiden
+  cs: Vyjmout
+menu.copy:
+  en: Copy
+  de: Kopieren
+  cs: Kopírovat
+menu.paste:
+  en: Paste
+  de: Einsetzen
+  cs: Vložit
+menu.select_all:
+  en: Select All
+  de: Alles auswählen
+  cs: Vybrat vše
+menu.view:
+  en: View
+  de: Darstellung
+  cs: Zobrazení
+menu.fullscreen:
+  en: Toggle Full Screen
+  de: Vollbildmodus ein/aus
+  cs: Přepnout na celou obrazovku
+menu.go:
+  en: Go
+  de: Gehe zu
+  cs: Přejít
+menu.log_time:
+  en: Log Time
+  de: Zeit erfassen
+  cs: Zapsat čas
+menu.calendar:
+  en: Calendar
+  de: Kalender
+  cs: Kalendář
+menu.entries:
+  en: Entries
+  de: Einträge
+  cs: Záznamy
+menu.activity:
+  en: Activity
+  de: Aktivität
+  cs: Aktivita
+menu.clients:
+  en: Clients
+  de: Kunden
+  cs: Klienti
+menu.settings:
+  en: Settings
+  de: Einstellungen
+  cs: Nastavení
+menu.window:
+  en: Window
+  de: Fenster
+  cs: Okno
+menu.minimize:
+  en: Minimize
+  de: Im Dock ablegen
+  cs: Minimalizovat
+menu.maximize:
+  en: Zoom
+  de: Zoomen
+  cs: Zvětšit
+tray.open:
+  en: Open Flowrly
+  de: Flowrly öffnen
+  cs: Otevřít Flowrly
+tray.quit:
+  en: Quit Flowrly
+  de: Flowrly beenden
+  cs: Ukončit Flowrly
+
+# ---------- Errors shown to the user ----------
+errors.only_http:
+  en: Only http(s) URLs can be opened
+  de: Nur http(s)-Adressen können geöffnet werden
+  cs: Otevřít lze jen adresy http(s)
+errors.no_activity:
+  en: No tracked activity for %{day}
+  de: Für %{day} wurde keine Aktivität aufgezeichnet
+  cs: Pro %{day} není zaznamenaná žádná aktivita
+errors.too_little_activity:
+  en: Less than a minute of activity tracked on %{day}
+  de: Am %{day} wurde weniger als eine Minute Aktivität aufgezeichnet
+  cs: Dne %{day} je zaznamenaná méně než minuta aktivity
+errors.ai_key_missing:
+  en: AI API key is not set. Add it in Settings.
+  de: Der KI-API-Schlüssel fehlt. Trage ihn in den Einstellungen ein.
+  cs: Chybí API klíč pro AI. Doplň ho v Nastavení.
+errors.ai_model_missing:
+  en: AI model is not set. Add it in Settings.
+  de: Es ist kein KI-Modell festgelegt. Trage es in den Einstellungen ein.
+  cs: Není nastavený AI model. Doplň ho v Nastavení.
+errors.fakturoid_account_missing:
+  en: Fakturoid account is not selected. Pick one in Settings.
+  de: Es ist kein Fakturoid-Konto ausgewählt. Wähle eines in den Einstellungen.
+  cs: Není vybraný účet ve Fakturoidu. Vyber ho v Nastavení.
+errors.fakturoid_credentials_missing:
+  en: Fakturoid client ID / secret are not set. Add them in Settings.
+  de: Fakturoid-Client-ID und -Secret fehlen. Trage sie in den Einstellungen ein.
+  cs: Chybí Client ID nebo Client Secret pro Fakturoid. Doplň je v Nastavení.
+errors.pick_client_to_invoice:
+  en: Pick a client to invoice
+  de: Wähle den Kunden, dem du eine Rechnung stellen willst
+  cs: Vyber klienta, kterému chceš fakturovat
+errors.no_entries_match:
+  en: No time entries match the current filter
+  de: Keine Zeiteinträge passen zum aktuellen Filter
+  cs: Aktuálnímu filtru neodpovídá žádný záznam
+errors.all_invoiced:
+  en: Every entry in this range is already invoiced
+  de: Alle Einträge in diesem Zeitraum sind bereits abgerechnet
+  cs: Všechny záznamy v tomto období už jsou vyfakturované
+errors.client_without_fakturoid:
+  en: Client has no Fakturoid subject or generator set. Configure it in Clients.
+  de: Für den Kunden ist kein Fakturoid-Kontakt und keine Vorlage festgelegt. Richte das unter Kunden ein.
+  cs: Klient nemá nastavený kontakt ani šablonu ve Fakturoidu. Nastav je v sekci Klienti.
+errors.invoice_not_marked:
+  en: "Invoice %{number} was created, but its entries could not be marked as invoiced: %{error}"
+  de: "Rechnung %{number} wurde erstellt, aber ihre Einträge konnten nicht als abgerechnet markiert werden: %{error}"
+  cs: "Faktura %{number} byla vytvořena, ale její záznamy se nepodařilo označit jako vyfakturované: %{error}"
+errors.client_not_found:
+  en: Client %{id} not found
+  de: Kunde %{id} nicht gefunden
+  cs: Klient %{id} nebyl nalezen
+errors.entry_not_found:
+  en: Entry %{id} not found
+  de: Eintrag %{id} nicht gefunden
+  cs: Záznam %{id} nebyl nalezen
+errors.client_name_required:
+  en: Client name is required
+  de: Der Kundenname fehlt
+  cs: Chybí jméno klienta
+errors.rate_negative:
+  en: Hourly rate can't be negative
+  de: Der Stundensatz darf nicht negativ sein
+  cs: Hodinová sazba nemůže být záporná
+errors.vat_range:
+  en: VAT rate must be between 0 and 100
+  de: Der Mehrwertsteuersatz muss zwischen 0 und 100 liegen
+  cs: Sazba DPH musí být mezi 0 a 100
+errors.currency_invalid:
+  en: Currency must be a 3-letter code like CZK or EUR
+  de: Die Währung muss ein dreistelliger Code wie CZK oder EUR sein
+  cs: Měna musí být třípísmenný kód, třeba CZK nebo EUR
+errors.pensum_range:
+  en: Pensum must be between 0 and 100 %
+  de: Das Pensum muss zwischen 0 und 100 % liegen
+  cs: Úvazek musí být mezi 0 a 100 %
+errors.workday_range:
+  en: Workday must be between 0 and 24 hours
+  de: Der Arbeitstag muss zwischen 0 und 24 Stunden lang sein
+  cs: Pracovní den musí mít 0 až 24 hodin
+errors.client_has_entries:
+  en: Client has %{count} time entries. Archive it instead, or delete the entries first.
+  de: Der Kunde hat %{count} Zeiteinträge. Archiviere ihn stattdessen oder lösche zuerst die Einträge.
+  cs: "Klient má záznamů: %{count}. Místo smazání ho archivuj, nebo nejdřív smaž záznamy."
+errors.invalid_date:
+  en: Invalid date '%{value}', expected YYYY-MM-DD
+  de: Ungültiges Datum „%{value}“, erwartet wird JJJJ-MM-TT
+  cs: Neplatné datum „%{value}“, očekává se RRRR-MM-DD
+errors.invalid_time:
+  en: Invalid time '%{value}', expected HH:MM
+  de: Ungültige Uhrzeit „%{value}“, erwartet wird HH:MM
+  cs: Neplatný čas „%{value}“, očekává se HH:MM
+errors.duration_positive:
+  en: Duration must be greater than zero
+  de: Die Dauer muss größer als null sein
+  cs: Doba musí být delší než nula
+errors.duration_max:
+  en: Duration can't exceed 24 hours
+  de: Die Dauer darf 24 Stunden nicht überschreiten
+  cs: Doba nemůže přesáhnout 24 hodin

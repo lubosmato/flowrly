@@ -2,6 +2,7 @@
 
 use chrono::{NaiveDate, NaiveTime};
 use rusqlite::{params, Connection, OptionalExtension, Row};
+use rust_i18n::t;
 
 use crate::error::{AppError, AppResult};
 use crate::models::{
@@ -68,28 +69,28 @@ pub fn list_clients(conn: &Connection) -> AppResult<Vec<Client>> {
 pub fn get_client(conn: &Connection, id: i32) -> AppResult<Client> {
     conn.query_row(&format!("SELECT {CLIENT_COLS} FROM clients WHERE id = ?1"), [id], client_from_row)
         .optional()?
-        .ok_or_else(|| AppError::NotFound(format!("Client {id} not found")))
+        .ok_or_else(|| AppError::NotFound(t!("errors.client_not_found", id = id).into()))
 }
 
 fn validate_client(input: &ClientInput) -> AppResult<()> {
     if input.name.trim().is_empty() {
-        return Err(AppError::Validation("Client name is required".into()));
+        return Err(AppError::Validation(t!("errors.client_name_required").into()));
     }
     if input.hourly_rate < 0.0 {
-        return Err(AppError::Validation("Hourly rate can't be negative".into()));
+        return Err(AppError::Validation(t!("errors.rate_negative").into()));
     }
     if !(0..=100).contains(&input.vat_rate) {
-        return Err(AppError::Validation("VAT rate must be between 0 and 100".into()));
+        return Err(AppError::Validation(t!("errors.vat_range").into()));
     }
     let cur = input.currency.trim();
     if cur.len() != 3 || !cur.chars().all(|c| c.is_ascii_alphabetic()) {
-        return Err(AppError::Validation("Currency must be a 3-letter code like CZK or EUR".into()));
+        return Err(AppError::Validation(t!("errors.currency_invalid").into()));
     }
     if !(0..=100).contains(&input.pensum_percent) {
-        return Err(AppError::Validation("Pensum must be between 0 and 100 %".into()));
+        return Err(AppError::Validation(t!("errors.pensum_range").into()));
     }
     if !(input.workday_hours > 0.0 && input.workday_hours <= 24.0) {
-        return Err(AppError::Validation("Workday must be between 0 and 24 hours".into()));
+        return Err(AppError::Validation(t!("errors.workday_range").into()));
     }
     Ok(())
 }
@@ -138,7 +139,7 @@ pub fn update_client(conn: &Connection, id: i32, input: &ClientInput) -> AppResu
         ],
     )?;
     if n == 0 {
-        return Err(AppError::NotFound(format!("Client {id} not found")));
+        return Err(AppError::NotFound(t!("errors.client_not_found", id = id).into()));
     }
     get_client(conn, id)
 }
@@ -146,9 +147,7 @@ pub fn update_client(conn: &Connection, id: i32, input: &ClientInput) -> AppResu
 pub fn delete_client(conn: &Connection, id: i32) -> AppResult<()> {
     let used: i32 = conn.query_row("SELECT count(*) FROM time_entries WHERE client_id = ?1", [id], |r| r.get(0))?;
     if used > 0 {
-        return Err(AppError::Validation(format!(
-            "Client has {used} time entries. Archive it instead, or delete the entries first."
-        )));
+        return Err(AppError::Validation(t!("errors.client_has_entries", count = used).into()));
     }
     conn.execute("DELETE FROM clients WHERE id = ?1", [id])?;
     Ok(())
@@ -173,12 +172,12 @@ const ENTRY_COLS: &str = "id, client_id, date, duration_minutes, start_time, end
 
 fn parse_date(s: &str) -> AppResult<NaiveDate> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d")
-        .map_err(|_| AppError::Validation(format!("Invalid date '{s}', expected YYYY-MM-DD")))
+        .map_err(|_| AppError::Validation(t!("errors.invalid_date", value = s).into()))
 }
 
 fn parse_time(s: &str) -> AppResult<NaiveTime> {
     NaiveTime::parse_from_str(s, "%H:%M")
-        .map_err(|_| AppError::Validation(format!("Invalid time '{s}', expected HH:MM")))
+        .map_err(|_| AppError::Validation(t!("errors.invalid_time", value = s).into()))
 }
 
 /// Applies the entry invariant: duration required; when start and end are both given,
@@ -214,10 +213,10 @@ pub fn normalize_entry(input: &TimeEntryInput) -> AppResult<TimeEntryInput> {
         }
     }
     if out.duration_minutes <= 0 {
-        return Err(AppError::Validation("Duration must be greater than zero".into()));
+        return Err(AppError::Validation(t!("errors.duration_positive").into()));
     }
     if out.duration_minutes > 24 * 60 {
-        return Err(AppError::Validation("Duration can't exceed 24 hours".into()));
+        return Err(AppError::Validation(t!("errors.duration_max").into()));
     }
     Ok(out)
 }
@@ -270,7 +269,7 @@ pub fn day_totals(conn: &Connection, from: &str, to: &str) -> AppResult<Vec<DayT
 pub fn get_entry(conn: &Connection, id: i32) -> AppResult<TimeEntry> {
     conn.query_row(&format!("SELECT {ENTRY_COLS} FROM time_entries WHERE id = ?1"), [id], entry_from_row)
         .optional()?
-        .ok_or_else(|| AppError::NotFound(format!("Entry {id} not found")))
+        .ok_or_else(|| AppError::NotFound(t!("errors.entry_not_found", id = id).into()))
 }
 
 pub fn create_entry(conn: &Connection, input: &TimeEntryInput) -> AppResult<TimeEntry> {
@@ -293,7 +292,7 @@ pub fn update_entry(conn: &Connection, id: i32, input: &TimeEntryInput) -> AppRe
         params![e.client_id, e.date, e.duration_minutes, e.start_time, e.end_time, e.description, id],
     )?;
     if n == 0 {
-        return Err(AppError::NotFound(format!("Entry {id} not found")));
+        return Err(AppError::NotFound(t!("errors.entry_not_found", id = id).into()));
     }
     get_entry(conn, id)
 }
@@ -305,7 +304,7 @@ pub fn set_entry_invoice(conn: &Connection, id: i32, number: Option<&str>) -> Ap
         params![number.map(str::trim), id],
     )?;
     if n == 0 {
-        return Err(AppError::NotFound(format!("Entry {id} not found")));
+        return Err(AppError::NotFound(t!("errors.entry_not_found", id = id).into()));
     }
     get_entry(conn, id)
 }

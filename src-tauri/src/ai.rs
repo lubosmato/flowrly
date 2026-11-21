@@ -17,6 +17,8 @@ pub struct AiConfig {
     pub model: String,
     pub base_url: Option<String>,
     pub api_key: Option<String>,
+    /// English name of the output language ("Czech"), see `i18n::ai_language_name`.
+    pub language: &'static str,
 }
 
 // ---------- Output shapes ----------
@@ -50,7 +52,9 @@ pub struct SuggestionOut {
 
 // ---------- Prompts ----------
 
-pub fn day_summary_preamble(existing_tags: &[String]) -> String {
+/// `language` is the English name of the output language ("German"); the description
+/// and any new tags are written in it (`Settings.ai_language`, else the UI language).
+pub fn day_summary_preamble(existing_tags: &[String], language: &str) -> String {
     let tags = if existing_tags.is_empty() {
         "(none yet)".to_string()
     } else {
@@ -64,12 +68,15 @@ Return two things.\n\
 PR numbers, topics, people). No filler, no judgement, no mention of the log itself.\n\
 2. tags: split the day's active minutes into kinds of work. Existing tags: {tags}. Reuse an existing \
 tag whenever it fits; create a new tag only when nothing fits. Tag names are lowercase, 1 to 2 words. \
-Minutes across tags should add up to roughly the total active minutes. Use at most 6 tags."
+Minutes across tags should add up to roughly the total active minutes. Use at most 6 tags.\n\
+Write the description and any new tag names in {language}. Keep project names, repositories and \
+window titles as they are."
     )
 }
 
-pub fn suggestion_preamble() -> String {
-    "You help a freelance software developer fill in a time entry for one day, given a log of \
+pub fn suggestion_preamble(language: &str) -> String {
+    format!(
+        "You help a freelance software developer fill in a time entry for one day, given a log of \
 focused windows (app name + window title) with minutes spent in each.\n\
 Propose one time entry:\n\
 - start_time: HH:MM when focused work began (ignore brief early checks of mail or chat).\n\
@@ -78,8 +85,9 @@ Propose one time entry:\n\
 (music, personal browsing, news, social media). Meetings, code review, chat about work and \
 documentation count as work.\n\
 - description: one line, max 120 characters, past tense, concrete (what was built, fixed or \
-discussed). It will be pasted into an invoice worksheet."
-        .to_string()
+discussed). It will be pasted into an invoice worksheet. Write it in {language}; keep project \
+names as they are."
+    )
 }
 
 // ---------- Extraction ----------
@@ -90,7 +98,7 @@ macro_rules! keyed_client {
             .api_key
             .clone()
             .filter(|k| !k.trim().is_empty())
-            .ok_or_else(|| AppError::Ai("AI API key is not set. Add it in Settings.".into()))?;
+            .ok_or_else(|| AppError::Ai(rust_i18n::t!("errors.ai_key_missing").into()))?;
         let built = match $cfg.base_url.as_deref().map(str::trim).filter(|u| !u.is_empty()) {
             Some(url) => <$client>::builder().api_key(key).base_url(url).build(),
             None => <$client>::new(key),
@@ -104,7 +112,7 @@ where
     T: JsonSchema + DeserializeOwned + Serialize + Send + Sync + 'static,
 {
     if cfg.model.trim().is_empty() {
-        return Err(AppError::Ai("AI model is not set. Add it in Settings.".into()));
+        return Err(AppError::Ai(rust_i18n::t!("errors.ai_model_missing").into()));
     }
     match cfg.provider {
         AiProvider::Anthropic => {
@@ -196,9 +204,10 @@ mod tests {
             model: std::env::var("FLOWRLY_MODEL").unwrap_or("z-ai/glm-5.3-flash".into()),
             base_url: None,
             api_key: std::env::var("FLOWRLY_API_KEY").ok(),
+            language: "English",
         };
         let t = std::time::Instant::now();
-        let out: SuggestionOut = extract(&cfg, &suggestion_preamble(), &text).await.unwrap();
+        let out: SuggestionOut = extract(&cfg, &suggestion_preamble("English"), &text).await.unwrap();
         eprintln!("{:?} in {:.1}s", out, t.elapsed().as_secs_f32());
     }
 }

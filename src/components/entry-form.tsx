@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { commands, type TimeEntry, type TimeEntryInput } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ export function EntryForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const { data: clients = [] } = useClients();
   const activeClients = useMemo(() => clients.filter((c) => !c.archived || c.id === entry?.client_id), [clients, entry]);
 
@@ -64,8 +66,8 @@ export function EntryForm({
   const saving = create.isPending || update.isPending;
 
   const submit = () => {
-    if (!clientId) return toast.error("Pick a client first");
-    if (!parsedDuration || parsedDuration <= 0) return toast.error(mode === "range" ? "Fill in start and end" : "Enter a duration like 3h 30m");
+    if (!clientId) return toast.error(t("entry.form.pickClient"));
+    if (!parsedDuration || parsedDuration <= 0) return toast.error(mode === "range" ? t("entry.form.fillStartEnd") : t("entry.form.enterDuration"));
     localStorage.setItem(LAST_CLIENT_KEY, clientId);
     const input: TimeEntryInput = {
       client_id: Number(clientId),
@@ -92,7 +94,7 @@ export function EntryForm({
       }
       setDurationText(fmtMinutes(s.duration_minutes));
       if (s.description) setDescription(s.description);
-      toast.success(`Tracker saw about ${fmtMinutes(s.duration_minutes)} of work`);
+      toast.success(t("entry.form.trackerSaw", { duration: fmtMinutes(s.duration_minutes) }));
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -119,13 +121,13 @@ export function EntryForm({
       }}
     >
       {entry?.invoice_number != null && (
-        <p className="text-xs text-muted-foreground">{invoicedLabel(entry.invoice_number)}. Changes here won't update the invoice.</p>
+        <p className="text-xs text-muted-foreground">{t("entry.form.invoicedNote", { invoiced: invoicedLabel(entry.invoice_number) })}</p>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Client">
+        <Field label={t("common.client")}>
           <Select value={clientId} onValueChange={setClientId}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Client" />
+              <SelectValue placeholder={t("common.client")} />
             </SelectTrigger>
             <SelectContent>
               {activeClients.map((c) => (
@@ -137,7 +139,7 @@ export function EntryForm({
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Date">
+        <Field label={t("common.date")}>
           <DatePicker value={date} onChange={setDate} />
         </Field>
       </div>
@@ -145,19 +147,19 @@ export function EntryForm({
       <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
         <TabsList className="w-full">
           <TabsTrigger value="duration" className="flex-1">
-            Duration
+            {t("common.duration")}
           </TabsTrigger>
           <TabsTrigger value="range" className="flex-1">
-            Start / end
+            {t("entry.form.startEnd")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       {mode === "duration" ? (
-        <Field label="Duration" hint={`3h 30m · 3:30 · 3.5 · 90m · 1d (= ${fmtMinutes(workdayMinutes)} for this client)`}>
+        <Field label={t("common.duration")} hint={t("entry.form.durationHint", { workday: fmtMinutes(workdayMinutes) })}>
           <Input
             autoFocus
-            placeholder="3h 30m"
+            placeholder={t("entry.form.durationPlaceholder")}
             value={durationText}
             onChange={(e) => setDurationText(e.target.value)}
             className="font-display text-lg"
@@ -166,7 +168,7 @@ export function EntryForm({
       ) : (
         <div className="flex flex-col gap-1.5">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start">
+            <Field label={t("common.start")}>
               <Input
                 autoFocus
                 placeholder="9:00"
@@ -178,7 +180,7 @@ export function EntryForm({
                 className="font-display tabular text-lg"
               />
             </Field>
-            <Field label="End">
+            <Field label={t("common.end")}>
               <Input
                 placeholder="17:30"
                 inputMode="numeric"
@@ -194,16 +196,16 @@ export function EntryForm({
             {parsedDuration ? (
               <span className="font-display tabular text-base text-foreground">{fmtMinutes(parsedDuration)}</span>
             ) : (
-              "24h clock · 9, 930 and 5pm all work"
+              t("entry.form.timeHint")
             )}
           </p>
         </div>
       )}
 
-      <Field label="Description">
+      <Field label={t("common.description")}>
         <Textarea
           rows={3}
-          placeholder="What did you work on?"
+          placeholder={t("entry.form.descriptionPlaceholder")}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -216,17 +218,17 @@ export function EntryForm({
           size="sm"
           onClick={suggest}
           disabled={suggesting}
-          title="Fill start, end, duration and description from tracked activity"
+          title={t("entry.form.suggestTitle")}
         >
           {suggesting ? <Loader2 className="animate-spin" /> : <Sparkles className="text-primary" />}
-          Suggest
+          {t("entry.form.suggest")}
         </Button>
         <div className="ml-auto flex gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" size="sm" disabled={saving}>
-            {entry ? "Save" : "Add entry"}
+            {entry ? t("common.save") : t("entry.form.addEntry")}
           </Button>
         </div>
       </div>

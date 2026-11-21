@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Loader2, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Stat } from "@/components/bits";
 import { useDayActivity, useDaySummary, useGenerateDaySummary } from "@/lib/api";
-import { fmtMinutes, prettyDay } from "@/lib/format";
+import { appLabel, fmtMinutes, prettyDay } from "@/lib/format";
 
 const APP_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
@@ -22,6 +23,7 @@ export function DayDetailSheet({ day, onClose }: { day: string | null; onClose: 
 }
 
 function DayDetail({ day }: { day: string }) {
+  const { t } = useTranslation();
   const { data: activity } = useDayActivity(day);
   const { data: summary } = useDaySummary(day);
   const generate = useGenerateDaySummary();
@@ -40,8 +42,8 @@ function DayDetail({ day }: { day: string }) {
         <SheetTitle className="font-display text-2xl font-medium">{prettyDay(day)}</SheetTitle>
         <SheetDescription>
           {activity
-            ? `${activity.first_active ?? "–"} to ${activity.last_active ?? "–"} · ${activity.sample_count} samples`
-            : "Loading tracked activity"}
+            ? t("entry.day.range", { first: activity.first_active ?? "–", last: activity.last_active ?? "–", count: activity.sample_count })
+            : t("entry.day.loading")}
         </SheetDescription>
       </SheetHeader>
 
@@ -56,12 +58,12 @@ function DayDetail({ day }: { day: string }) {
           ) : (
             <>
               <div className="flex gap-8">
-                <Stat label="Active" value={fmtMinutes(activity.active_minutes)} />
-                <Stat label="Idle" value={fmtMinutes(activity.idle_minutes)} />
+                <Stat label={t("entry.day.active")} value={fmtMinutes(activity.active_minutes)} />
+                <Stat label={t("entry.day.idle")} value={fmtMinutes(activity.idle_minutes)} />
               </div>
 
               <section className="flex flex-col gap-2">
-                <SectionLabel>Through the day</SectionLabel>
+                <SectionLabel>{t("entry.day.throughTheDay")}</SectionLabel>
                 <div className="flex h-16 items-end gap-[3px]">
                   {activity.per_hour.map((m, h) => (
                     <div
@@ -83,7 +85,7 @@ function DayDetail({ day }: { day: string }) {
 
               <section className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <SectionLabel>Summary</SectionLabel>
+                  <SectionLabel>{t("entry.day.summary")}</SectionLabel>
                   <Button
                     variant="ghost"
                     size="xs"
@@ -92,33 +94,33 @@ function DayDetail({ day }: { day: string }) {
                     disabled={generate.isPending}
                   >
                     {generate.isPending ? <Loader2 className="animate-spin" /> : <Sparkles className="text-primary" />}
-                    {summary ? "Regenerate" : "Summarize with AI"}
+                    {summary ? t("entry.day.regenerate") : t("entry.day.summarize")}
                   </Button>
                 </div>
                 {summary ? (
                   <>
                     <p className="text-sm leading-relaxed">{summary.description}</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {summary.tags.map((t) => (
-                        <Badge key={t.tag} variant="secondary" className="tabular">
-                          {t.tag} · {fmtMinutes(t.minutes)}
+                      {summary.tags.map((tag) => (
+                        <Badge key={tag.tag} variant="secondary" className="tabular">
+                          {tag.tag} · {fmtMinutes(tag.minutes)}
                         </Badge>
                       ))}
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Generated {summary.generated_at}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("entry.day.generated", { at: summary.generated_at })}</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No summary yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("entry.day.noSummary")}</p>
                 )}
               </section>
 
               <section className="flex flex-col gap-2">
-                <SectionLabel>Apps</SectionLabel>
+                <SectionLabel>{t("entry.day.apps")}</SectionLabel>
                 <ul className="flex flex-col gap-2">
                   {activity.apps.slice(0, 10).map((a) => (
                     <li key={a.app} className="flex flex-col gap-1">
                       <div className="flex justify-between text-sm">
-                        <span className="truncate">{a.app}</span>
+                        <span className="truncate">{appLabel(a.app)}</span>
                         <span className="tabular shrink-0 text-muted-foreground">{fmtMinutes(a.minutes)}</span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
@@ -130,20 +132,20 @@ function DayDetail({ day }: { day: string }) {
               </section>
 
               <section className="flex flex-col gap-2">
-                <SectionLabel>Windows</SectionLabel>
+                <SectionLabel>{t("entry.day.windows")}</SectionLabel>
                 <ul className="flex flex-col divide-y divide-border/50 text-sm">
                   {activity.top_blocks.map((b, i) => (
                     <li key={i} className="flex items-baseline gap-3 py-1.5">
                       <span className="mt-1 size-2 shrink-0 self-start rounded-full" style={{ background: colorFor(b.app) }} />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate">{b.title || <span className="text-muted-foreground">(no title)</span>}</div>
-                        <div className="truncate text-xs text-muted-foreground">{b.app}</div>
+                        <div className="truncate">{b.title || <span className="text-muted-foreground">{t("entry.day.noTitle")}</span>}</div>
+                        <div className="truncate text-xs text-muted-foreground">{appLabel(b.app)}</div>
                       </div>
                       <span className="tabular shrink-0 text-muted-foreground">{fmtMinutes(b.minutes)}</span>
                     </li>
                   ))}
                 </ul>
-                {activity.top_blocks.length === 0 && <p className="text-sm text-muted-foreground">Nothing recorded.</p>}
+                {activity.top_blocks.length === 0 && <p className="text-sm text-muted-foreground">{t("entry.day.nothingRecorded")}</p>}
               </section>
             </>
           )}

@@ -1,16 +1,17 @@
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import mark from "@/assets/mark.png";
 import { CLIENT_COLORS } from "@/components/bits";
 import { Stage } from "./kit";
 
 const SHORTCUTS = [
-  { keys: ["⌘", "N"], label: "Log time" },
-  { keys: ["⌘", "1"], label: "Calendar" },
-  { keys: ["⌘", "2"], label: "Entries" },
-  { keys: ["⌘", "3"], label: "Activity" },
-  { keys: ["⌘", "4"], label: "Clients" },
-  { keys: ["⌘", ","], label: "Settings" },
-];
+  { keys: ["⌘", "N"], label: "demos.done.logTime" },
+  { keys: ["⌘", "1"], label: "shell.calendar" },
+  { keys: ["⌘", "2"], label: "shell.entries" },
+  { keys: ["⌘", "3"], label: "shell.activity" },
+  { keys: ["⌘", "4"], label: "shell.clients" },
+  { keys: ["⌘", ","], label: "shell.settings" },
+] as const;
 const SPARKS = Array.from({ length: 16 }, (_, i) => {
   const angle = (i / 16) * Math.PI * 2 + (i % 2) * 0.2;
   const radius = 120 + (i % 3) * 34;
@@ -19,8 +20,9 @@ const SPARKS = Array.from({ length: 16 }, (_, i) => {
 
 /** Send-off: the mark, a burst in the client colours, and the shortcuts worth knowing. */
 export function DoneDemo({ color }: { color: string }) {
+  const { t } = useTranslation();
   return (
-    <Stage label="Good to know" caption="Press ⌘N anywhere in Flowrly to log time">
+    <Stage label={t("demos.done.label")} caption={t("demos.done.caption")}>
       <div className="flex h-full flex-col items-center justify-center gap-12">
         <div className="relative flex size-40 items-center justify-center">
           {[0, 1, 2].map((i) => (
@@ -63,7 +65,7 @@ export function DoneDemo({ color }: { color: string }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 + i * 0.08, duration: 0.35, ease: "easeOut" }}
             >
-              <span className="text-muted-foreground">{s.label}</span>
+              <span className="text-muted-foreground">{t(s.label)}</span>
               <span className="flex gap-1">
                 {s.keys.map((k) => (
                   <kbd

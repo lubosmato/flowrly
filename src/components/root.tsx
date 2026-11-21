@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { AppShell } from "@/components/app-shell";
 import { Nebula } from "@/components/nebula";
 import { useSettings } from "@/lib/api";
+import { applyLanguage, resolveLanguage } from "@/i18n";
 import { Onboarding } from "@/routes/onboarding";
 
 /** Path that reopens onboarding over a configured app (Settings → "Replay the intro"). */
@@ -15,6 +17,10 @@ export const ONBOARDING_PATH = "/welcome";
  */
 export function Root() {
   const { data: settings } = useSettings();
+  const language = settings ? resolveLanguage(settings.language) : null;
+  useEffect(() => {
+    if (language) void applyLanguage(language);
+  }, [language]);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const onboarding = settings ? !settings.onboarding_completed || path === ONBOARDING_PATH : null;
   return (

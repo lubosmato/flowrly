@@ -1,0 +1,26 @@
+export default {
+  monthLogged: "<n>{{hours}} h</n> logged this month",
+  prevMonth: "Previous month",
+  nextMonth: "Next month",
+  /** date-fns pattern for the weekday column headers (Mon, Tue, …) */
+  weekdayPattern: "EEE",
+  trackedNothingLogged: "Tracked {{duration}}, nothing logged yet",
+  nothingLogged: "Nothing logged",
+  loggedSummary_one: "{{duration}} across {{count}} entry",
+  loggedSummary_other: "{{duration}} across {{count}} entries",
+  logTime: "Log time",
+  quietTitle: "A quiet day",
+  quietHint: "Log time by hand, or let the tracker suggest an entry.",
+  unknownClient: "Unknown client",
+  noDescription: "No description",
+  deleteTitle: "Delete this entry?",
+  /** Client name fallback inside the delete confirmation ("2h for client") */
+  someClient: "client",
+  deleteWhat: "{{duration}} for {{client}}",
+  deleteInvoiced: "{{duration}} for {{client}}. This entry is already invoiced.",
+  deleteInvoicedIn: "{{duration}} for {{client}}. This entry is already invoiced in {{number}}.",
+  tracked: "Tracked",
+  activeIdle: "active · {{idle}} idle",
+  regenerate: "Regenerate",
+  summarizeAi: "Summarize with AI",
+} as const;

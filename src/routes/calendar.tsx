@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   addMonths,
   eachDayOfInterval,
+  format,
   endOfMonth,
   endOfWeek,
   isSameMonth,
@@ -13,6 +14,7 @@ import {
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Sparkles, Loader2, Activity } from "lucide-react";
 import { cn } from "cn";
 import { AnimatePresence, motion } from "motion/react";
+import { Trans, useTranslation } from "react-i18next";
 import type { TimeEntry } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,11 +33,10 @@ import {
   useGenerateDaySummary,
   useTrackedDays,
 } from "@/lib/api";
-import { fmtHours, fmtMinutes, invoicedLabel, isoDay, monthLabel, prettyDay } from "@/lib/format";
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+import { appLabel, fmtHours, fmtMinutes, invoicedLabel, isoDay, monthLabel, prettyDay } from "@/lib/format";
 
 export function CalendarPage() {
+  const { t } = useTranslation();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState(() => isoDay(new Date()));
 
@@ -73,12 +74,14 @@ export function CalendarPage() {
         <PageHeader
           title={monthLabel(month)}
           subtitle={
-            <>
-              <span className="tabular">{fmtHours(monthTotal)} h</span> logged this month
-            </>
+            <Trans
+              i18nKey="calendar.monthLogged"
+              values={{ hours: fmtHours(monthTotal) }}
+              components={{ n: <span className="tabular" /> }}
+            />
           }
         >
-            <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label="Previous month">
+            <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label={t("calendar.prevMonth")}>
               <ChevronLeft />
             </Button>
             <Button
@@ -89,17 +92,17 @@ export function CalendarPage() {
                 setSelected(isoDay(new Date()));
               }}
             >
-              Today
+              {t("common.today")}
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Next month">
+            <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label={t("calendar.nextMonth")}>
               <ChevronRight />
             </Button>
         </PageHeader>
 
         <div className="ml-7 mr-6 mb-2 grid grid-cols-7 px-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className="px-3">
-              {d}
+          {days.slice(0, 7).map((d) => (
+            <div key={d.getDay()} className="px-3">
+              {format(d, t("calendar.weekdayPattern"))}
             </div>
           ))}
         </div>
@@ -125,7 +128,7 @@ export function CalendarPage() {
                   <span className={cn("tabular text-xs font-medium", isToday(d) && "text-primary")}>{d.getDate()}</span>
                   {trk && !info && (
                     <span
-                      title={`Tracked ${fmtMinutes(trk.active_minutes)}, nothing logged yet`}
+                      title={t("calendar.trackedNothingLogged", { duration: fmtMinutes(trk.active_minutes) })}
                       className="size-1.5 rounded-full bg-primary/70"
                     />
                   )}
@@ -154,6 +157,7 @@ export function CalendarPage() {
 }
 
 function DayPanel({ day }: { day: string }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState<TimeEntry | "new" | null>(null);
   const filter = useMemo(() => ({ client_id: null, from: day, to: day }), [day]);
   const { data: entries = [], isPending } = useEntries(filter);
@@ -191,13 +195,15 @@ function DayPanel({ day }: { day: string }) {
               <Skeleton className="mt-2 h-4 w-36" />
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">
-                {entries.length === 0 ? "Nothing logged" : `${fmtMinutes(total)} across ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
+                {entries.length === 0
+                  ? t("calendar.nothingLogged")
+                  : t("calendar.loggedSummary", { duration: fmtMinutes(total), count: entries.length })}
               </p>
             )}
           </div>
           {editing === null && (
             <Button size="sm" onClick={() => setEditing("new")}>
-              <Plus /> Log time
+              <Plus /> {t("calendar.logTime")}
             </Button>
           )}
         </div>
@@ -241,7 +247,7 @@ function DayPanel({ day }: { day: string }) {
             )}
 
             {entries.length === 0 && editing === null ? (
-              <Empty title="A quiet day" hint="Log time by hand, or let the tracker suggest an entry." />
+              <Empty title={t("calendar.quietTitle")} hint={t("calendar.quietHint")} />
             ) : (
               <ul className="flex flex-col gap-2">
                 {entries.map((e) => {
@@ -258,13 +264,13 @@ function DayPanel({ day }: { day: string }) {
                       />
                       <div className={cn("min-w-0 flex-1", invoiced && "opacity-55")}>
                         <div className="flex items-baseline justify-between gap-2">
-                          <span className="truncate text-sm font-medium">{c?.name ?? "Unknown client"}</span>
+                          <span className="truncate text-sm font-medium">{c?.name ?? t("calendar.unknownClient")}</span>
                           <span className="font-display tabular shrink-0 text-lg">{fmtMinutes(e.duration_minutes)}</span>
                         </div>
                         <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
                           <span className="truncate">
                             {invoiced && <>{invoicedLabel(e.invoice_number!)} · </>}
-                            {e.description || "No description"}
+                            {e.description || t("calendar.noDescription")}
                           </span>
                           {e.start_time && e.end_time && (
                             <span className="tabular shrink-0">
@@ -274,23 +280,27 @@ function DayPanel({ day }: { day: string }) {
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                        <Button variant="ghost" size="icon-xs" onClick={() => setEditing(e)} aria-label="Edit">
+                        <Button variant="ghost" size="icon-xs" onClick={() => setEditing(e)} aria-label={t("common.edit")}>
                           <Pencil />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon-xs"
                           onClick={async () => {
-                            const what = `${fmtMinutes(e.duration_minutes)} for ${c?.name ?? "client"}`;
+                            const vars = { duration: fmtMinutes(e.duration_minutes), client: c?.name ?? t("calendar.someClient") };
                             if (
                               await confirm({
-                                title: "Delete this entry?",
-                                description: invoiced ? `${what}. This entry is already invoiced${e.invoice_number ? ` in ${e.invoice_number}` : ""}.` : what,
+                                title: t("calendar.deleteTitle"),
+                                description: invoiced
+                                  ? e.invoice_number
+                                    ? t("calendar.deleteInvoicedIn", { ...vars, number: e.invoice_number })
+                                    : t("calendar.deleteInvoiced", vars)
+                                  : t("calendar.deleteWhat", vars),
                               })
                             )
                               del.mutate(e.id);
                           }}
-                          aria-label="Delete"
+                          aria-label={t("common.delete")}
                         >
                           <Trash2 />
                         </Button>
@@ -313,6 +323,7 @@ function DayPanel({ day }: { day: string }) {
 }
 
 function TrackerCard({ day }: { day: string }) {
+  const { t } = useTranslation();
   const { data: activity } = useDayActivity(day);
   const { data: summary } = useDaySummary(day);
   const generate = useGenerateDaySummary();
@@ -324,7 +335,7 @@ function TrackerCard({ day }: { day: string }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Activity className="size-3.5" />
-          Tracked
+          {t("calendar.tracked")}
         </div>
         <span className="tabular text-xs text-muted-foreground">
           {activity.first_active}–{activity.last_active}
@@ -332,16 +343,16 @@ function TrackerCard({ day }: { day: string }) {
       </div>
       <div className="flex items-baseline gap-2">
         <span className="font-display tabular text-2xl">{fmtMinutes(activity.active_minutes)}</span>
-        <span className="text-xs text-muted-foreground">active · {fmtMinutes(activity.idle_minutes)} idle</span>
+        <span className="text-xs text-muted-foreground">{t("calendar.activeIdle", { idle: fmtMinutes(activity.idle_minutes) })}</span>
       </div>
 
       {summary ? (
         <div className="flex flex-col gap-2">
           <p className="text-sm leading-relaxed">{summary.description}</p>
           <div className="flex flex-wrap gap-1.5">
-            {summary.tags.map((t) => (
-              <Badge key={t.tag} variant="secondary" className="tabular">
-                {t.tag} · {fmtMinutes(t.minutes)}
+            {summary.tags.map((tag) => (
+              <Badge key={tag.tag} variant="secondary" className="tabular">
+                {tag.tag} · {fmtMinutes(tag.minutes)}
               </Badge>
             ))}
           </div>
@@ -353,7 +364,7 @@ function TrackerCard({ day }: { day: string }) {
             disabled={generate.isPending}
           >
             {generate.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-            Regenerate
+            {t("calendar.regenerate")}
           </Button>
         </div>
       ) : (
@@ -362,7 +373,7 @@ function TrackerCard({ day }: { day: string }) {
             {activity.top_blocks.slice(0, 4).map((b, i) => (
               <li key={i} className="flex justify-between gap-3">
                 <span className="truncate">
-                  <span className="text-foreground/80">{b.app}</span>
+                  <span className="text-foreground/80">{appLabel(b.app)}</span>
                   {b.title && <span className="opacity-70"> · {b.title}</span>}
                 </span>
                 <span className="tabular shrink-0">{fmtMinutes(b.minutes)}</span>
@@ -371,7 +382,7 @@ function TrackerCard({ day }: { day: string }) {
           </ul>
           <Button variant="outline" size="sm" className="self-start" onClick={() => generate.mutate(day)} disabled={generate.isPending}>
             {generate.isPending ? <Loader2 className="animate-spin" /> : <Sparkles className="text-primary" />}
-            Summarize with AI
+            {t("calendar.summarizeAi")}
           </Button>
         </div>
       )}

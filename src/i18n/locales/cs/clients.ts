@@ -1,0 +1,37 @@
+import type en from "../en/clients";
+import type { Translation } from "../types";
+
+export default {
+  /** Starting invoice line text for a new client; {period} is filled in by Rust. */
+  defaultLineDescription: "Vývoj softwaru {period}",
+  title: "Klienti",
+  subtitle: "Pro koho pracuješ, kolik platí a kam jde faktura.",
+  newClient: "Nový klient",
+  emptyTitle: "Zatím žádní klienti",
+  emptyHint: "Přidej firmu, které fakturuješ. Budeš ji potřebovat, než začneš zapisovat čas.",
+  editClient: "Upravit klienta",
+  details: "Údaje o klientovi",
+  name: "Název",
+  colour: "Barva",
+  hourlyRate: "Hodinová sazba",
+  currency: "Měna",
+  vat: "DPH %",
+  invoiceLine: "Položka faktury",
+  invoiceLineHint: "{period} se změní např. na 09/2026",
+  pensum: "Úvazek %",
+  pensumHint: "Podíl plného úvazku, který tomuto klientovi dlužíš",
+  workdayHours: "Hodin za pracovní den",
+  workdayHoursHint: "Hodiny za celý pracovní den, např. 8,5",
+  reload: "Znovu načíst",
+  loadFromFakturoid: "Načíst z Fakturoidu",
+  subject: "Kontakt",
+  pickSubject: "Vyber kontakt",
+  subjectId: "ID kontaktu",
+  generator: "Šablona",
+  pickGenerator: "Vyber šablonu",
+  generatorId: "ID šablony",
+  archived: "Archivováno",
+  deleteTitle: "Smazat {{name}}?",
+  deleteDescription: "Jde to jen tehdy, když klient nemá žádné časové záznamy. Místo toho ho archivuj, ať zůstane historie.",
+  create: "Vytvořit",
+} satisfies Translation<typeof en>;

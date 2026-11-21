@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
+import { useTranslation } from "react-i18next";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { isoDay } from "@/lib/format";
+import { fmtDate, isoDay } from "@/lib/format";
 
 const parse = (s: string) => (s ? parseISO(s) : undefined);
 
@@ -19,6 +20,7 @@ export function DatePicker({
   onChange: (iso: string) => void;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const date = parse(value);
   return (
@@ -26,7 +28,7 @@ export function DatePicker({
       <PopoverTrigger asChild>
         <Button variant="outline" className={cn("w-full min-w-0 justify-start font-normal", !date && "text-muted-foreground", className)}>
           <CalendarIcon className="text-muted-foreground" />
-          <span className="truncate">{date ? format(date, "d MMM yyyy") : "Pick a date"}</span>
+          <span className="truncate">{date ? fmtDate(date, "date") : t("common.pickDate")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -56,17 +58,18 @@ export function DateRangePicker({
   onChange: (from: string, to: string) => void;
   className?: string;
 }) {
+  const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   const f = parse(from);
   const t = parse(to);
   const label =
     f && t
       ? format(f, "yyyy-MM") === format(t, "yyyy-MM") && f.getDate() === 1 && t.getDate() === new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate()
-        ? format(f, "LLLL yyyy")
-        : `${format(f, "d MMM")} – ${format(t, "d MMM yyyy")}`
+        ? fmtDate(f, "month")
+        : `${fmtDate(f, "dayMonth")} – ${fmtDate(t, "date")}`
       : f
-        ? `from ${format(f, "d MMM yyyy")}`
-        : "Any time";
+        ? tr("common.fromDate", { date: fmtDate(f, "date") })
+        : tr("common.anyTime");
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

@@ -3,15 +3,16 @@ import { Link, useMatches, useRouter, useRouterState } from "@tanstack/react-rou
 import { listen } from "@tauri-apps/api/event";
 import { AnimatePresence, motion } from "motion/react";
 import { CalendarDays, ListChecks, Sparkles, Users, Settings2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "cn";
 import mark from "@/assets/mark.png";
 
 const NAV = [
-  { to: "/", label: "Calendar", icon: CalendarDays, keys: ["1"] },
-  { to: "/entries", label: "Entries", icon: ListChecks, keys: ["2"] },
-  { to: "/dashboard", label: "Activity", icon: Sparkles, keys: ["3"] },
-  { to: "/clients", label: "Clients", icon: Users, keys: ["4"] },
-  { to: "/settings", label: "Settings", icon: Settings2, keys: ["5", ","] },
+  { to: "/", label: "shell.calendar", icon: CalendarDays, keys: ["1"] },
+  { to: "/entries", label: "shell.entries", icon: ListChecks, keys: ["2"] },
+  { to: "/dashboard", label: "shell.activity", icon: Sparkles, keys: ["3"] },
+  { to: "/clients", label: "shell.clients", icon: Users, keys: ["4"] },
+  { to: "/settings", label: "shell.settings", icon: Settings2, keys: ["5", ","] },
 ] as const;
 
 /**
@@ -61,14 +62,16 @@ function AnimatedPage() {
 
 export function AppShell() {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const { t } = useTranslation();
   useMenuActions();
   return (
     <div className="flex h-screen w-screen">
       <aside data-tauri-drag-region className="flex w-[88px] shrink-0 flex-col items-center pt-12 pb-6">
         <img src={mark} alt="Flowrly" className="mb-8 size-11 select-none drop-shadow-sm" draggable={false} />
         <nav className="flex flex-col items-center gap-1.5">
-          {NAV.map(({ to, label, icon: Icon, keys }) => {
+          {NAV.map(({ to, label: key, icon: Icon, keys }) => {
             const active = path === to;
+            const label = t(key);
             return (
               <Link
                 key={to}

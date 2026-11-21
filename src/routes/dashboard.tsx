@@ -3,6 +3,7 @@ import { addMonths, endOfMonth, startOfMonth } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { commands } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +11,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Empty, PageHeader, Stat } from "@/components/bits";
 import { DayDetailSheet } from "@/components/day-detail";
 import { errorMessage, useDaySummaries, useGenerateDaySummary, useTrackedDays } from "@/lib/api";
-import { fmtHours, fmtMinutes, isoDay, monthLabel, prettyDay } from "@/lib/format";
+import { fmtHours, fmtMinutes, isoDay, monthLabel, prettyDay, shortDay } from "@/lib/format";
 
 const TAG_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const from = isoDay(startOfMonth(month));
   const to = isoDay(endOfMonth(month));
@@ -29,7 +31,7 @@ export function DashboardPage() {
   const totalActive = days.reduce((a, d) => a + d.active_minutes, 0);
   const tagTotals = useMemo(() => {
     const m = new Map<string, number>();
-    for (const s of summaries) for (const t of s.tags) m.set(t.tag, (m.get(t.tag) ?? 0) + t.minutes);
+    for (const s of summaries) for (const tag of s.tags) m.set(tag.tag, (m.get(tag.tag) ?? 0) + tag.minutes);
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [summaries]);
   const tagMax = tagTotals[0]?.[1] ?? 1;
@@ -42,7 +44,7 @@ export function DashboardPage() {
       try {
         await commands.generateDaySummary(d.day);
       } catch (e) {
-        toast.error(`${d.day}: ${errorMessage(e)}`);
+        toast.error(`${shortDay(d.day)}: ${errorMessage(e)}`);
       }
       done += 1;
       setBulk({ done, total: missing.length });
@@ -57,17 +59,19 @@ export function DashboardPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Activity" subtitle="What your machine saw, distilled by the model when you ask for it.">
-        <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label="Previous month">
+      <PageHeader title={t("activity.title")} subtitle={t("activity.subtitle")}>
+        <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label={t("activity.prevMonth")}>
           <ChevronLeft />
         </Button>
         <span className="font-display min-w-36 text-center text-lg">{monthLabel(month)}</span>
-        <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Next month">
+        <Button variant="ghost" size="icon" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label={t("activity.nextMonth")}>
           <ChevronRight />
         </Button>
         <Button size="sm" variant="outline" onClick={summarizeAll} disabled={missing.length === 0 || bulk !== null} className="ml-3">
           {bulk ? <Loader2 className="animate-spin" /> : <Sparkles className="text-primary" />}
-          {bulk ? `Summarizing ${bulk.done}/${bulk.total}` : `Summarize ${missing.length} ${missing.length === 1 ? "day" : "days"}`}
+          {bulk
+            ? t("activity.summarizing", { done: bulk.done, total: bulk.total })
+            : t("activity.summarizeDays", { count: missing.length })}
         </Button>
       </PageHeader>
 
@@ -75,7 +79,7 @@ export function DashboardPage() {
         <div className="glass flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl">
           <ScrollArea className="min-h-0 flex-1">
             {days.length === 0 ? (
-              <Empty title="Nothing tracked yet" hint="The tracker records focused windows while Flowrly runs in the menu bar." />
+              <Empty title={t("activity.emptyTitle")} hint={t("activity.emptyHint")} />
             ) : (
               <ul className="flex flex-col divide-y divide-border/50">
                 {[...days].reverse().map((d) => {
@@ -97,9 +101,9 @@ export function DashboardPage() {
                         <>
                           <p className="text-sm leading-relaxed text-foreground/90">{s.description}</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {s.tags.map((t) => (
-                              <Badge key={t.tag} variant="secondary" className="tabular">
-                                {t.tag} · {fmtMinutes(t.minutes)}
+                            {s.tags.map((tag) => (
+                              <Badge key={tag.tag} variant="secondary" className="tabular">
+                                {tag.tag} · {fmtMinutes(tag.minutes)}
                               </Badge>
                             ))}
                           </div>
@@ -116,7 +120,7 @@ export function DashboardPage() {
                           }}
                         >
                           {generate.isPending && generate.variables === d.day ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                          Summarize
+                          {t("activity.summarize")}
                         </Button>
                       )}
                     </li>
@@ -128,11 +132,11 @@ export function DashboardPage() {
         </div>
 
         <aside className="glass flex w-72 shrink-0 flex-col gap-6 rounded-3xl p-6">
-          <Stat label="Active" value={`${fmtHours(totalActive, 1)} h`} sub={`${days.length} ${days.length === 1 ? "day" : "days"} tracked`} />
-          <Stat label="Per day" value={days.length ? fmtMinutes(Math.round(totalActive / days.length)) : "—"} />
+          <Stat label={t("activity.active")} value={`${fmtHours(totalActive, 1)} h`} sub={t("activity.daysTracked", { count: days.length })} />
+          <Stat label={t("activity.perDay")} value={days.length ? fmtMinutes(Math.round(totalActive / days.length)) : "—"} />
           {tagTotals.length > 0 && (
             <div className="flex flex-col gap-2">
-              <span className="text-[11px] tracking-wide text-muted-foreground uppercase">Kinds of work</span>
+              <span className="text-[11px] tracking-wide text-muted-foreground uppercase">{t("activity.kindsOfWork")}</span>
               <ul className="flex flex-col gap-2">
                 {tagTotals.slice(0, 8).map(([tag, minutes], i) => (
                   <li key={tag} className="flex flex-col gap-1">

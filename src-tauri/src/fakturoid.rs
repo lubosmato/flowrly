@@ -66,9 +66,7 @@ impl<'a> Fakturoid<'a> {
             }
         }
         if self.creds.client_id.trim().is_empty() || self.creds.client_secret.trim().is_empty() {
-            return Err(AppError::Fakturoid(
-                "Fakturoid client ID / secret are not set. Add them in Settings.".into(),
-            ));
+            return Err(AppError::Fakturoid(rust_i18n::t!("errors.fakturoid_credentials_missing").into()));
         }
         let res = self
             .http

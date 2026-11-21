@@ -175,6 +175,11 @@ pub struct Settings {
     /// False until the first-run wizard is finished. Until then nothing is tracked and
     /// the app does not register itself to launch at login.
     pub onboarding_completed: bool,
+    /// UI language: "en", "de" or "cs", or "" to follow the OS (see `i18n::resolve`).
+    pub language: String,
+    /// Language the AI writes day summaries and suggestions in: "en", "de" or "cs",
+    /// or "" to use the UI language. Lets the UI be Czech while invoices stay English.
+    pub ai_language: String,
 }
 
 impl Settings {
@@ -199,6 +204,8 @@ impl Default for Settings {
             backup_dir: String::new(),
             launch_at_login: true,
             onboarding_completed: false,
+            language: String::new(),
+            ai_language: String::new(),
         }
     }
 }

@@ -8,6 +8,7 @@ import { ConfirmProvider } from "@/components/confirm";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { router } from "./router";
 import { commands } from "@/bindings";
+import { initI18n } from "@/i18n";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,8 @@ async function reveal() {
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   root.classList.add("ready");
 }
+
+await initI18n();
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
