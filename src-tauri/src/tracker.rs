@@ -12,6 +12,7 @@ use rusqlite::{params, Connection};
 
 use crate::db;
 
+#[cfg(target_os = "macos")]
 mod ax {
     //! Focused-window title via the Accessibility API. `active-win-pos-rs` reads
     //! `kCGWindowName` of the *first* CG window owned by the frontmost pid, which for
@@ -53,6 +54,19 @@ mod ax {
             return None;
         }
         Some(CFType::wrap_under_create_rule(out))
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+mod ax {
+    //! The app ships for macOS only; this stub keeps `cargo test` and local builds
+    //! working elsewhere. Titles fall back to whatever `active-win-pos-rs` reports.
+    pub fn request_permission() -> bool {
+        true
+    }
+
+    pub fn focused_window_title(_pid: i32) -> Option<String> {
+        None
     }
 }
 
